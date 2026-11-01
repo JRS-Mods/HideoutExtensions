@@ -217,23 +217,27 @@ namespace HideoutExtensions
                 else if (spot.Opening != null)
                 {
                     Vector3 at = Point(spot.Opening.Position);
+                    // The door stands flush in the face of the wall on the room it's reached from, as through the
+                    // hideout's walls: halfway through the wall, its leaf was behind the face (all of it while the wall
+                    // isn't cut yet, but for the hinges and handle).
+                    Vector3 flush = at + Quaternion.Euler(0, spot.Opening.Facing, 0) * Vector3.forward * (Room.Gap / 2);
                     if (site.Phase == Site.State.Built)
                     {
                         // A door you open, close or breach, swinging into the room it's reached from.
-                        if (!Working(spot.Id, at, spot.Opening.Facing))
+                        if (!Working(spot.Id, flush, spot.Opening.Facing))
                         {
-                            Transform door = parts.Door(fixtures.transform, at, spot.Opening.Facing);
+                            Transform door = parts.Door(fixtures.transform, flush, spot.Opening.Facing);
                             if (SwingDoor.Make(door, site, spot.Id, parts, at, spot.Opening.Facing, Room.Gap) == null)
                             {
                                 UnityEngine.Object.Destroy(door.gameObject);
-                                parts.Frame(fixtures.transform, at, spot.Opening.Facing);
+                                parts.Frame(fixtures.transform, flush, spot.Opening.Facing);
                             }
                         }
                     }
                     else if (Find(spot.Opening.From)?.Phase == Site.State.Built)
                     {
                         // Where the next room goes: a closed door in the built room's wall, and its build prompt.
-                        parts.Door(fixtures.transform, at, spot.Opening.Facing);
+                        parts.Door(fixtures.transform, flush, spot.Opening.Facing);
                         site.Zone(fixtures.transform, at, spot.Opening.Facing, Room.Gap / 2, Role.Build);
                     }
                 }

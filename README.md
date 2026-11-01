@@ -2,142 +2,315 @@
 
 By JRS.
 
-Rooms you build onto the hideout. A spot on a hideout wall gets a prompt; building it takes materials from your stash like a hideout upgrade, and when it's done a metal door stands there and leads into a new room.
+Hideout Extensions lets you build new rooms onto your hideout, move the hideout's areas wherever you like, and makes the hideout run a bit lighter. Other mods can use it too: they can add their own rooms, furnish the rooms, and let players move their own things around the hideout.
 
-Two parts, both needed:
+![The annex from the overview: the corridor behind the gym, the south room, and the north room's build icon](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/annex-overview.jpg)
 
-- `BepInEx/plugins/HideoutExtensions` (client): the prompt, the door and the room.
-- `SPT_Runtime/user/mods/HideoutExtensions.Server` (server): the spots, their costs and build times, and taking the materials.
+## Contents
 
-![Two annex rooms built, and the north room ready to build](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/rooms.jpg)
+- [Installing](#installing)
+- [Building rooms: the annex](#building-rooms-the-annex)
+- [Moving the hideout's areas](#moving-the-hideouts-areas)
+- [Hideout performance](#hideout-performance)
+- [Settings](#settings)
+- [Uninstalling](#uninstalling)
+- [Bugs and feedback](#bugs-and-feedback)
+- [For modders](#for-modders)
+- [How it works](#how-it-works)
+- [Limits](#limits)
 
-## In the hideout: the annex
+## Installing
 
-Rooms north of the gym (the back half of the room behind the emergency wall) and east of the shooting range, built one at a time. It needs the emergency wall at level 6.
+Needs **SPT 4.1.x**. No other mods are needed.
+
+1. Close the SPT server and the game.
+2. Extract the zip into your SPT folder (the one with `BepInEx` and `SPT_Runtime` in it), and merge the folders if asked.
+3. Start SPT as usual.
+
+The mod comes in two parts, and you need both:
+
+| Folder | What it does |
+| --- | --- |
+| `BepInEx/plugins/HideoutExtensions` | The client part: the rooms, doors, prompts and overview icons, and moving areas. |
+| `SPT_Runtime/user/mods/HideoutExtensions.Server` | The server part: the list of rooms, what they cost, and taking the materials when you build. |
+
+## Building rooms: the annex
+
+The mod comes with **the annex**: three rooms behind the gym that you build one after another. To start, the emergency wall must be at level 6.
 
 ```
-   ┌─────────────────────────────┐
-   │ north room    ┊             │
-   ├────────────── ┊ ─── door ───┤
-   │ south room    ┊             │
-   └───[door]──────┴─────────────┘   ┊ pillar wall
-   ┌──── annex corridor ─────────┐
-   └──────[door]─────────────────┘
-      gym's back wall
+              north ↑
+   ┌──────────────────────────────┐
+   │ 3. north room ┊              │
+   ├────────────────────[door]────┤
+   │ 2. south room ┊              │
+   └────[door]────────────────────┘
+   ┌───── 1. annex corridor ──────┐
+   └───────────[door]─────────────┘
+            gym's back wall           ┊ = pillar wall
 ```
 
-- **The annex corridor** is the sealed concrete corridor already in the hideout's model, right behind the gym's cream back wall. Its door is in that wall, between the Place of Fame shelf and the gym gear. Building it opens and lights it: the door becomes an open frame on both sides of the wall, and you just walk through.
-- **The south room** is through a door in the corridor's back wall, which works the same way once built.
-- **The north room** starts as a closed metal door in the south room's back wall. Once built, the doorway opens.
-- **Doors:** every built doorway has a copy of the emergency wall's working metal door, with the game's own door script, so you open, close and breach it exactly like the hideout's doors (same prompt, hand animations and sounds). Through the hideout's own walls it stands on the side you come from (the gym, the corridor), flush in its frame, and swings towards you; the far side is a frame round the lined gap. It stays as you left it until you leave the hideout. Building the corridor also moves the gym's punching bag 0.5 m right and takes away the blue mat under it, out of the door's way. (If the hideout has no such door to copy, a simpler one that only swings is used.) Through the hideout's own walls it's on the inner side (the corridor, the south room).
-- **Lights:** each lamp spot has a fluorescent tube and a hanging bulb, copied from the hideout's own light groups with the game's lamp script, so they follow the **light switch** on the overview like the areas' lamps: tubes for fluorescent tubes, bulbs for bulbs and the Christmas and Halloween lights, and off for off and candles (the rooms have no candles). They hang from the ceiling, in each bay running the same way as the pillar wall.
-- **Customization:** the two rooms take the hall's walls, floor and ceiling, and follow the hideout's **customization** when you change them. The corridor is the hideout's own concrete; a concrete block covers the old brick infill that poked into its east end.
-- Each room is two bays under a **pillar wall** like the one in the room behind the emergency wall: a concrete beam under the ceiling on a pillar at each end, open between them (its sizes are measured from the game's own).
-- **Building:** look at a room's door in first person and press your interact key, or click its **icon on the overview** (the plus badge over every room you can build next, its hexagon as big as the area icons; it glows while its panel is open). Both show what it needs and what you have of each (from your stash, as the hideout's own screens count it), the build time, and why it's locked if it is; the panel's **Build** button starts it. While a room is being built its icon shows the time left.
-- On the **overview** a built room shows from above like the hideout's own rooms, so the annex fills in room by room.
-
-![The build panel](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/build-panel.jpg)
+1. **The annex corridor.** There's already a sealed concrete corridor behind the gym's back wall in the game's model. Building it puts a door in the gym's back wall, between the Place of Fame shelf and the gym gear, and lights the corridor. It also moves the punching bag half a metre to the right and removes the blue mat under it, so they're out of the door's way.
+2. **The south room.** Through a door in the corridor's back wall.
+3. **The north room.** Through a door in the south room's back wall.
 
 | Room | Cost | Build time |
 | --- | --- | --- |
-| Corridor | 150,000 roubles, 3 packs of nails, 4 bolts, 1 electric drill | 4 h |
+| Annex corridor | 150,000 roubles, 3 packs of nails, 4 bolts, 1 electric drill | 4 h |
 | South room | 120,000 roubles, 2 packs of nails, 3 bolts, 1 pack of screws | 3 h |
 | North room | 200,000 roubles, 3 packs of nails, 4 bolts, 1 toolset | 5 h |
 
-Build times follow SPT's `hideout.json` `overrideBuildTimeSeconds`, as for the game's own areas. The two rooms are about 12.8 x 6.3 m and 3.1 m high, in the hall's own walls, floor and ceiling, with four lamp spots each (two per bay); the corridor gets three. (Up to 0.5.1 there were four rooms of 6.3 x 6.3 m: the south room keeps the south-west room's build and the north room the north-east room's; the other two are gone.)
+Build times follow SPT's `overrideBuildTimeSeconds` in `hideout.json`, just like the game's own areas.
 
-Everything is made from the hideout itself each visit: the rooms' walls, floor and ceiling use the game's own materials at their own texture scale, the doors are the metal door from the emergency-wall room, the lamps are copies of the shooting range's ceiling lamps with their lights, and the overview icons use the area icons' own artwork. Nothing is shipped or extracted from the game.
+### How to build a room
+
+There are two ways:
+
+- **In first person:** walk up to the closed door where the room will go and look at it. The prompt shows what the room costs, how much of each item you have, and the build time. Choose **Build** to start.
+- **On the overview:** a plus icon sits over every room you can build next. Click it to open a panel with the same information and a **Build** button.
+
+If a room is locked, the prompt and the panel say why (for example, the room before it isn't built yet). The materials come from your stash, counted the same way the hideout's own upgrade screens count them. While a room is being built, its overview icon counts down the time left. When it's done, the door works and the room appears straight away, even if you're in the hideout at the time.
+
+![The north room's door, with its build prompt](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/build-prompt.jpg)
+
+### What you get
+
+- **Real doors.** Every doorway gets a copy of the emergency wall's metal door with the game's own door script. You open, close and breach it like any hideout door, with the same prompt, hand animations and sounds. A door stays as you left it until you leave the hideout.
+- **Lights that follow the light switch.** Each room has ceiling lamps copied from the hideout's own, and they follow the light switch on the overview like the areas' lamps do: fluorescent tubes, bulbs, Christmas and Halloween lights, or off.
+- **Your hideout's look.** The south and north rooms use the main hall's walls, floor and ceiling, and change with them when you change the hideout's customisation. The corridor stays bare concrete.
+- **A proper room shape.** The south and north rooms are about 12.8 x 6.3 m and 3.1 m high, each split into two bays by a pillar wall like the one in the room behind the emergency wall.
+- **Shown on the overview.** A built room shows from above like the hideout's own rooms, so you can see the annex fill in room by room.
+
+Everything is built from the hideout's own models and materials each time you visit. Nothing is shipped with the mod or extracted from the game.
+
+## Moving the hideout's areas
+
+![Moving the Gear Rack into the annex from the overview](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/moving-gear-rack.jpg)
+
+On the overview, **right-click an area's icon** to pick the whole area up. It follows your mouse across the floor, with everything that belongs to it: its furniture, its lights, its click zone, its icon, and the camera view you get when you open it.
+
+| Key | What it does |
+| --- | --- |
+| **R** | Turn it a quarter |
+| **Shift+R** | Turn it 15° |
+| **Left-click** | Put it down |
+| **Right-click** | Cancel, and put it back where it was |
+| **Backspace** | Send it back to where the game has it |
+
+Where you put each area is saved per profile and set again every visit. The file is `BepInEx/config/jrs.hideoutextensions.layout.<profile id>.json`; delete it to put every area back.
+
+Good to know:
+
+- **Lights move with the area**, because most of an area's lights are its own (spotlights aimed at its displays, candles on its shelves, bulbs on its cables). The spot the area leaves gets plain ceiling lamps so it isn't dark, and they go again when you put the area back. Turn on `Lights stay in the room` if you'd rather leave the lights where they were.
+- **The walls don't move.** Whatever the game built into the bunker's walls for an area stays put, so the gap it leaves can look bare. Things an area hangs on its walls (shelves, the punching bag, paint) go with it, so it looks best against walls like the ones it came from.
+- **The emergency wall can't be moved**, because the room it's in carries the annex. You can lock other areas in the settings.
+
+## Hideout performance
+
+With every area built, the hideout has around 130 lights that cast shadows, and each of those redraws part of the scene every frame. The game normally fades a light's shadows out between 12 and 17 m from you and switches them off further away, but some lights were left without that fade. Most of them are Halloween lights (on during SPT's Halloween event, 28 October to 9 November), plus a few in nearly every area.
+
+The mod gives those lights the same fade as the rest, and switches off light haze (volumetric light) more than 30 m away, which the game doesn't do. Both work even if you don't use the rooms, and turning them off puts every light back the way the game had it.
+
+Tip: the Halloween decorations are a hideout lighting mode the game switches to on your first visit during the event. Switching the hideout's lighting back to normal turns them all off, and that helps more than anything else.
 
 ## Settings
 
-`BepInEx/config/jrs.hideoutextensions.cfg`, `General` → `Enabled`: off leaves the hideout exactly as the game has it. A built room stays built in your profile and comes back when it's turned on again.
+Press **F12** in game and open **JRS-HideoutExtensions**, or edit `BepInEx/config/jrs.hideoutextensions.cfg`.
 
-## How it works
+![The settings in F12](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/settings.png)
 
-The game builds its hideout areas from a list inside the client, so a new area can't be added. A room extension isn't an area: it's a door the mod places in a wall and a room it builds behind it. The bunker's walls are big meshes the game keeps on the graphics card only; the mod reads the ones a built door goes through back from there and swaps in copies with the doorway cut out.
+| Section | Setting | Default | What it does |
+| --- | --- | --- | --- |
+| General | Enabled | On | Off leaves the hideout exactly as the game has it. Rooms you've built stay in your profile and come back when you turn it on again. |
+| Hideout performance | Fade far shadows | On | Gives the lights the game missed the same shadow fade as the rest. |
+| Hideout performance | Light haze distance | 30 | Switches light haze off past this many metres (0 = never). |
+| Moving areas | Areas that stay put | `EmergencyWall` | Areas that can't be moved, comma-separated (the game's area names, such as `Gym` or `ShootingRange`). |
+| Moving areas | Enabled | On | Lets you move areas from the overview. |
+| Moving areas | Lights stay in the room | Off | Leaves an area's lights behind when you move it. |
 
-A build is recorded the way the game records a hideout improvement: the client sends the improvement request (`HideoutImproveArea`) with the spot's id and the items it picked from your stash; the server mod checks the spot may be built and that the items cover its cost, takes them as the game does (money from a stack, other items whole) and stores the build in your profile's hideout improvements. The game's own handler never sees a spot's id. The client reads the build's state from the hideout's improvement records, so a build finishing while you're in the hideout puts the door and room in straight away.
+## Uninstalling
 
-## Adding your own rooms (for modders)
+Back up your profile first (`SPT_Runtime/user/profiles`), because the rooms you've built are recorded in it. Then delete:
 
-**A spot** is a JSON file: one room, and how you get into it. Put it in a `hideoutextensions` folder inside your own server mod (`user/mods/YourMod/hideoutextensions/*.json`), or in this mod's `spots` folder. Every one found is loaded when the server starts. A room entered through one of the hideout's own walls:
+- `BepInEx/plugins/HideoutExtensions`
+- `SPT_Runtime/user/mods/HideoutExtensions.Server`
+
+## Bugs and feedback
+
+Please report bugs in the **Issues** tab, and attach your `BepInEx/LogOutput.log` from the hideout visit where it happened. That log shows which hideout parts the mod found, which rooms it set up and in what state, and when a build started or a room was put in. The SPT server's log lists the rooms it loaded and every build it started or refused.
+
+## For modders
+
+Hideout Extensions gives other mods three ways in:
+
+| You want to... | Where | How |
+| --- | --- | --- |
+| Add your own rooms | Server mod | A JSON file per room in a `hideoutextensions` folder. No code needed. |
+| Put your own things in the rooms | Client mod | The `RoomReady` event. |
+| Let players move your things from the overview | Client mod | `HideoutExtensionsApi.AddMovable`. |
+
+### Adding your own rooms
+
+Each buildable room is a **spot**: one JSON file that says where the room is, how you get into it, and what it costs.
+
+1. In your server mod, make a folder called `hideoutextensions`: `SPT_Runtime/user/mods/YourMod/hideoutextensions/`.
+2. Put one `.json` file per room in it.
+3. Restart the SPT server. Every spot is loaded at start, and anything wrong with one (a bad id, an unknown item, a room that's too small) is written to the server log and that spot is left out.
+
+There are two kinds of room. One is **entered through a door in one of the hideout's own walls**, which the mod cuts through. This is the annex's south room (`spots/annex_1_south.json`):
 
 ```json
 {
-  "id": "6a70e5c0a1b2c3d4e5f60001",
-  "name": "Annex entrance room",
-  "room": { "min": [1.6, 16.95], "max": [7.9, 23.25], "height": 3.1, "lamps": 2 },
-  "door": { "position": [7.0, 0.0, 12.78], "facing": 180 },
-  "inside": { "position": [7.0, 0.0, 16.95], "facing": 0 },
-  "requirements": [ { "template": "5449016a4bdc2d6f028b456f", "count": 150000 } ],
-  "buildSeconds": 14400,
-  "unlock": { "area": "EmergencyWall", "level": 6, "why": "Tidy up the room behind the emergency wall first" }
-}
-```
-
-and one reached through a doorway from another room:
-
-```json
-{
-  "id": "6a70e5c0a1b2c3d4e5f60002",
-  "name": "Annex east room",
-  "room": { "min": [8.1, 16.95], "max": [14.4, 23.25], "height": 3.1, "lamps": 2 },
-  "opening": { "from": "6a70e5c0a1b2c3d4e5f60001", "position": [8.0, 0.0, 20.1], "facing": 270 },
-  "requirements": [ { "template": "5449016a4bdc2d6f028b456f", "count": 120000 } ],
+  "id": "6a70e5c0a1b2c3d4e5f60005",
+  "name": "Annex south room",
+  "description": "The first room off the annex corridor.",
+  "room": {
+    "min": [1.6, 16.95], "max": [14.4, 23.25], "height": 3.1, "lamps": 4, "style": "hideout",
+    "pillarWalls": [ { "from": [8.0, 16.95], "to": [8.0, 23.25] } ]
+  },
+  "door": { "position": [4.75, 0.0, 16.36], "facing": 180 },
+  "inside": { "position": [4.75, 0.0, 16.95], "facing": 0 },
+  "after": "6a70e5c0a1b2c3d4e5f60001",
+  "requirements": [
+    { "template": "5449016a4bdc2d6f028b456f", "count": 120000 },
+    { "template": "590c31c586f774245e3141b2", "count": 2 }
+  ],
   "buildSeconds": 10800
 }
 ```
 
-- `id`: 24 hex characters, unique. It's also the improvement id stored in the profile, so don't change it once people have built it.
-- `room`: the inside, in hideout world coordinates: the floor from `min` to `max` (x, z), `floor` height (default 0), `height`, and how many ceiling lamps. Rooms next to each other stand 0.2 m apart (that's the wall between them). Rooms mustn't overlap each other or the hideout.
-- `door` + `inside`: a door in one of the hideout's own walls (on the floor, mid-doorway, in the wall's plane; `facing` in degrees about vertical, 0 = +z, 90 = +x, towards where you stand), and the other side of the same doorway (on the far face of the wall, or on the room's own wall). Once built the doorway is cut through everything between the two.
-- `opening`: an open doorway from the room of spot `from`, which has to be built first. `position` is on the floor, mid-doorway, halfway through the wall between the two rooms; `facing` points into the `from` room.
-- `after` (for a room with a door): a spot that has to be built first, such as the room the door is in. `room.style`: `basement` (raw concrete), `hideout` (the hall's current walls, floor and ceiling, following the customization) or `existing` (a space the hideout's model already has; it only gets lamps).
-- `hideoutEdits` (optional): changes to the hideout's own things once the spot is built, each `{ "path": "<root>/<child>/...", "move": [x, y, z] }` (metres from where the game puts it) or `{ "path": ..., "hide": true }`.
-- `room.blocks` (optional): plain blocks in the room's walls' material, `{ "min": [x, y, z], "max": [x, y, z] }` in hideout coordinates, to cover parts of the hideout's model that poke into the room.
-- `room.pillarWalls` (optional): pillar walls inside the room, each `{ "from": [x, z], "to": [x, z] }` along x or z on the floor: a beam under the ceiling on a pillar at each end (and one in the middle past 9 m), like the room behind the emergency wall's.
-- `requirements`: item templates and counts (roubles `5449016a4bdc2d6f028b456f`). `unlock` (optional): a hideout area (the server's `HideoutAreas` names) and the level it must be at.
+The other is **entered through a doorway from a room that's already built**. This is the annex's north room (`spots/annex_2_north.json`), reached from the south room:
 
-A spot that's broken (bad id, unknown item, too small) is left out and logged at server start. A server mod can also add spots in code: inject `HideoutExtensions.Server.SpotCatalog` and call `Add(spot)` while loading.
+```json
+{
+  "id": "6a70e5c0a1b2c3d4e5f60004",
+  "name": "Annex north room",
+  "room": { "min": [1.6, 23.45], "max": [14.4, 29.75], "height": 3.1, "lamps": 4, "style": "hideout" },
+  "opening": { "from": "6a70e5c0a1b2c3d4e5f60005", "position": [11.25, 0.0, 23.35], "facing": 180 },
+  "requirements": [ { "template": "5449016a4bdc2d6f028b456f", "count": 200000 } ],
+  "buildSeconds": 18000
+}
+```
 
-**Furnishing a room** is the client's job. Reference `HideoutExtensions.dll`, add `[BepInDependency("jrs.hideoutextensions", BepInDependency.DependencyFlags.SoftDependency)]` and handle the event:
+A new room hanging off one of the annex rooms is the easiest place to start: use `opening` with `from` set to that room's id.
+
+**Coordinates** are in metres in the hideout's world: +x is east, +z is north, y is up, and the floor is at 0. `room.min` and `room.max` are the inside corners of the floor (x, z). Rooms next to each other stand 0.2 m apart; that gap is the wall between them. A room mustn't overlap another room or the hideout's own model. The annex's rooms are good reference points: the corridor is x 1.6 to 13.42, z 13.2 to 16.34; the south room z 16.95 to 23.25; the north room z 23.45 to 29.75.
+
+**Facing** is in degrees around the vertical: 0 looks towards +z (north), 90 towards +x (east), 180 south, 270 west.
+
+| Field | What it is |
+| --- | --- |
+| `id` | 24 hex characters, unique to this room. It's stored in players' profiles as the build's id, so never change it once people have built the room. |
+| `name`, `description` | What the prompt and the build panel show. |
+| `room.min`, `room.max` | The floor's inside corners (x, z). |
+| `room.floor` | Floor height (default 0). |
+| `room.height` | Inside height (default 3.1). |
+| `room.lamps` | How many ceiling lamps (default 2). |
+| `room.style` | `hideout`: the main hall's walls, floor and ceiling, following the customisation (default). `basement`: raw concrete like the room behind the emergency wall. `existing`: a space the hideout's model already has (like the corridor); it only gets lamps. |
+| `room.pillarWalls` | Optional. Pillar walls across the room, each `{ "from": [x, z], "to": [x, z] }`, along x or z: a beam under the ceiling on a pillar at each end, plus one in the middle if it's longer than 9 m. |
+| `room.blocks` | Optional. Plain blocks in the room's wall material, `{ "min": [x, y, z], "max": [x, y, z] }`, to cover bits of the hideout's model that poke into the room. |
+| `door` | For a room reached through a hideout wall: the door, on the floor in the middle of the doorway, on the face of the wall you approach from. `facing` points towards where you stand. |
+| `inside` | The other side of that doorway: on the far face of the wall (or on your room's own wall). The mod cuts the doorway through everything between `door` and `inside`. |
+| `after` | Optional, with `door`: a spot that has to be built first, such as the room the door is in. |
+| `opening` | Instead of `door` and `inside`: a doorway from the room of spot `from`, which has to be built first. `position` is on the floor in the middle of the doorway, halfway through the wall between the two rooms. `facing` points into the `from` room. |
+| `hideoutEdits` | Optional. Changes to the hideout's own objects once the room is built, to get them out of the way: `{ "path": "23_gym/level1/highlight_transform/Punching_bag_02", "move": [0.5, 0, 0] }` moves one (metres), `{ "path": "...", "hide": true }` hides one. |
+| `requirements` | Items and counts it costs. Roubles are `5449016a4bdc2d6f028b456f`. Money is taken from a stack; other items are taken whole. |
+| `buildSeconds` | How long it takes to build. |
+| `unlock` | Optional. A hideout area and the level it must be at, with the reason shown while it's locked: `{ "area": "EmergencyWall", "level": 6, "why": "..." }`. `area` uses the server's `HideoutAreas` names. |
+
+A server mod can also add spots in code: inject `HideoutExtensions.Server.SpotCatalog` and call `Add(spot)` while loading. `Add` returns why a spot was refused, or `null` if it was added.
+
+### Setting up a client mod
+
+Client mods talk to Hideout Extensions through `HideoutExtensionsApi` in `HideoutExtensions.dll`.
+
+1. Reference `BepInEx/plugins/HideoutExtensions/HideoutExtensions.dll` in your project, and don't copy it into your build.
+2. Add a soft dependency to your plugin class, so your mod loads after Hideout Extensions when it's there, and still loads without it:
+
+   ```csharp
+   [BepInDependency("jrs.hideoutextensions", BepInDependency.DependencyFlags.SoftDependency)]
+   ```
+
+3. Keep every call into Hideout Extensions in a class of its own, and only call it when the mod is installed. That way your mod never touches its types when it isn't there:
+
+   ```csharp
+   using System.Runtime.CompilerServices;
+   using BepInEx.Bootstrap;
+
+   internal static class HideoutExtensionsLink
+   {
+       internal static bool Present => Chainloader.PluginInfos.ContainsKey("jrs.hideoutextensions");
+
+       [MethodImpl(MethodImplOptions.NoInlining)]
+       internal static void Hook() { /* the calls below go in methods like this one */ }
+   }
+
+   // In your plugin's Awake:
+   if (HideoutExtensionsLink.Present) HideoutExtensionsLink.Hook();
+   ```
+
+### Putting your own things in the rooms
+
+The rooms are built fresh every time the hideout loads. When a built room is ready, `RoomReady` is raised with that room, so subscribe once (in `Awake`) and add your things each time:
 
 ```csharp
 HideoutExtensionsApi.RoomReady += room =>
 {
-    if (room.Spot.Id != "6a70e5c0a1b2c3d4e5f60004") return;
-    // room.Root: on the floor at the room's min x / min z inside corner, axes as the world's (+x east, +z north).
-    // The inside spans 0..Size.x, 0..Size.y, 0..Size.z. What you add under Root stays for the visit, even when the
-    // room's walls are rebuilt because a neighbour was built; it goes when the hideout unloads.
-    var crate = Object.Instantiate(myCrate, room.Root);
-    crate.transform.localPosition = new Vector3(1.5f, 0, room.Size.z - 1);
+    if (room.Spot.Id != "6a70e5c0a1b2c3d4e5f60004") return; // only the annex's north room
+
+    // room.Root sits on the floor at the room's south-west inside corner (min x, min z),
+    // with the world's axes: +x east, +y up, +z north. The inside runs from 0 to room.Size.
+    var crate = Object.Instantiate(myCratePrefab, room.Root);
+    crate.transform.localPosition = new Vector3(1.5f, 0f, room.Size.z - 1f); // 1.5 m from the west wall, 1 m from the north wall
 };
 ```
 
-`HideoutExtensionsApi.AddMovable(new MovableThing { Name, Icon, Root, Check, Placed })` lets players move something of yours from the overview like an area: right-click its icon, it follows the mouse, and `Placed` is called where it's put down (keep and remember it there yourself); `Check` can refuse a spot. K9 Companion's kennel uses it.
+- `RoomReady` is raised once per built room on every hideout visit, and again when a room finishes building while the player is in the hideout.
+- Anything you put under `room.Root` stays for the whole visit, even if the room's walls are rebuilt because a neighbouring room was built. It's removed when the hideout unloads, and you add it again on the next `RoomReady`.
+- `HideoutExtensionsApi.Rooms` lists the rooms in the scene right now, which helps if your mod starts after they're ready.
+- `HideoutExtensionsApi.Spots` lists every spot with its `State` (`none`, `building` or `built`), so you can check whether the player has built a room: `HideoutExtensionsApi.Spots.Any(s => s.Id == "..." && s.State == "built")`.
 
-`RoomReady` is raised once per room on every hideout visit (the rooms are rebuilt each time the hideout loads) and when a room finishes building while you're there. `HideoutExtensionsApi.Spots` lists every spot with its state; `HideoutExtensionsApi.Rooms` the rooms in the scene.
+### Letting players move your things
 
-## Moving the hideout's areas
+If your mod puts something in the hideout (a workbench, a kennel, a display), you can let players move it from the overview exactly like an area: right-click its icon, it follows the mouse, R turns it, and a left-click puts it down.
 
-![Moving the Hall of Fame on the overview](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/moving-areas.jpg)
+```csharp
+HideoutExtensionsApi.AddMovable(new MovableThing
+{
+    Name = "Workbench",            // shown at the top of the screen while it's being moved
+    Icon = myOverviewIcon,         // your icon on the overview: right-clicking it (or anything under it) picks it up
+    Root = myWorkbench.transform,  // what moves: its origin follows the mouse on the floor, and it turns around it
+    Check = (position, rotation) => FitsThere(position, rotation) ? null : "something's in the way",
+    Placed = (position, rotation) => SaveWhereItIs(position, rotation),
+});
+```
 
-On the overview, **right-click an area's icon** and the whole area follows your mouse across the floor: everything its icon highlights, with its lights, its click zone, its icon and the view the camera flies to when you open it (they all live under the area in the game's scene). **R** turns it a quarter, **Shift+R** 15°; **left-click** puts it down, **right-click** puts it back where it was, **Backspace** back where the game has it. Where each area stands is kept per profile in `BepInEx/config/jrs.hideoutextensions.layout.<profile id>.json` and set again every visit; deleting the file puts them all back.
+- **`Check`** is optional. Return a reason to refuse a spot, or `null` to allow it. A refused spot isn't used, and the player sees "Workbench can't go there: something's in the way".
+- **`Placed`** is called when the player puts it down. It's up to you to remember the position and rotation, and to put the thing back there on the next visit; Hideout Extensions doesn't save it for you.
+- **Add it again every visit**, since your icon and object are new each time. Adding it with the same icon or root replaces the old entry, and entries whose icon or object is gone are dropped. `RemoveMovable` takes it off again.
+- **Copied an area's icon?** If your icon is a copy of one of the game's area icons, right-clicking it would pick up that area. Call `HideoutExtensionsApi.AddUnmovable(icon, "Why it can't move")` for any such icon that shouldn't move anything.
 
-An area's lights go with it (its light groups are mostly its own: spotlights aimed at its displays, candles on its shelves, bulbs on its cables), and the spot it leaves gets the annex rooms' lamps (tubes or bulbs, following the light switch, hung from the ceiling there and not over where an area stands now), which go again when you put the area back; `Lights stay in the room` in the config's `Moving areas` section leaves them behind instead. What's built into the bunker for an area stays where it was (the gap it leaves is bare), and what an area hangs on its walls (shelves, the punching bag, paint) goes with it, so it only looks right against walls like the old ones. The emergency wall can't be moved (it carries the room the annex is in); the config's `Moving areas` section turns moving off or adds areas that stay put.
+K9 Companion uses this for its kennel: the kennel's paw icon on the overview picks up the kennel, `Check` refuses spots where it doesn't fit, and `Placed` saves where the player put it.
 
-## Hideout performance
+## How it works
 
-The hideout itself is heavy to draw: with every area built it has around 130 lights casting shadows, and each one draws part of the scene again every frame. The game fades a light's shadows out between 12 and 17 m from you and turns them off past that, but some lights were left without it: most of the Halloween lights (on during SPT's Halloween event, 28 October to 9 November) and a few in nearly every area. The mod gives those the same fade, and switches off light haze (volumetric light) the game doesn't cull past 30 m. In the config (`BepInEx/config/jrs.hideoutextensions.cfg`, section `Hideout performance`): `Fade far shadows` (on) and `Light haze distance` (30; 0 = never). Both work without the room extensions, and turning them off puts every light back as the game had it.
+**Rooms aren't hideout areas.** The game's list of hideout areas is fixed inside the client, so a new area can't be added. Instead, each room is a "spot" the server mod keeps a list of. When you enter the hideout, the client asks the server for the spots and how far along each one is, then builds the doors and rooms in the scene.
 
-The Halloween decorations are a hideout lighting mode the game switches to on your first visit during the event; switching the hideout's lighting back to normal turns them all off, which helps most of all.
+**Building works like a hideout upgrade.** When you press Build, the client sends the game's normal "improve area" request with the spot's id and the items it picked from your stash. The server mod checks the room can be built and that the items cover the cost, takes them, and records the build in your profile's hideout improvements with its finish time. The game's own handler never sees a spot's id, so nothing else in the hideout is affected.
 
-## Logs
+**Rooms are built fresh every visit** from the hideout's own parts: wall, floor and ceiling materials at their original texture scale, the emergency wall's metal door, the hideout's lamps, and the area icons' artwork for the overview. Built rooms also get holes in the black cover the overview draws over the unexplored parts of the bunker, so you can see into them from above.
 
-`BepInEx/LogOutput.log` says what the hideout parts were found as (materials, collider layer, door, lamp), which spots were set up and in what state, and when a build starts or a room is put in. The server log lists the spots it loaded and every build it starts or refuses.
+**Doorways through the hideout's walls are real holes.** The bunker's walls are large meshes the game keeps on the graphics card only. Once per visit (about 50 ms), the mod reads the walls a doorway goes through back from the graphics card, cuts the doorway out of a copy, swaps the copy in, and lines the gap between the two wall faces with concrete. The original walls go back when you leave the hideout. If a cut fails, the log says so and that door falls back to a dark doorway that moves you through instead. Doorways between the mod's own rooms are simply left open in their walls.
+
+**Pathfinding finds its way in.** The game's navigation mesh was made before these rooms existed, so the mod builds one for the built rooms each visit and links it to the hideout's through every doorway. Anything that walks the hideout with pathfinding (like K9 Companion's dog) can go in and out.
+
+**Moving areas** works because each area in the game's scene is one object holding everything that belongs to it: its levels, furniture, lights, click zone, icon point and camera view. Moving and turning that one object moves the whole area. The new positions are saved per profile and set again each visit.
 
 ## Limits
 
-- A door through the hideout's own walls is a real doorway: the game keeps those walls on the graphics card only, so the mod reads the meshes the doorway goes through back from there once per visit (about 50 ms), cuts the doorway out of a copy and swaps the copy in (the originals go back when the hideout unloads), then lines the gap between the two walls with concrete. If that fails, or something it can't cut still blocks the doorway, the log says so and the doors fall back to dark doorways that move you through. The doorways between the annex's own rooms are real openings.
-- The rooms are plain, lit by two lamps each; furnishing is up to mods (or a later version).
-- The game's navmesh was baked before the annex existed, so the mod builds one for its rooms each visit (from their own colliders) and links it to the hideout's through every doorway; pathfinding (K9 Companion's dog) finds its way in. A shut door is in the way, and areas you've moved keep the hideout's old navmesh.
+- The rooms are empty apart from their lamps. Furnishing them is up to other mods (or a later version).
+- A shut door blocks pathfinding, and areas you've moved keep the hideout's old navigation mesh.
+
+## Licence
+
+MIT (`LICENSE.txt`).
