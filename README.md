@@ -9,6 +9,8 @@ Two parts, both needed:
 - `BepInEx/plugins/HideoutExtensions` (client): the prompt, the door and the room.
 - `SPT_Runtime/user/mods/HideoutExtensions.Server` (server): the spots, their costs and build times, and taking the materials.
 
+![Two annex rooms built, and the north room ready to build](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/rooms.jpg)
+
 ## In the hideout: the annex
 
 Rooms north of the gym (the back half of the room behind the emergency wall) and east of the shooting range, built one at a time. It needs the emergency wall at level 6.
@@ -33,6 +35,8 @@ Rooms north of the gym (the back half of the room behind the emergency wall) and
 - Each room is two bays under a **pillar wall** like the one in the room behind the emergency wall: a concrete beam under the ceiling on a pillar at each end, open between them (its sizes are measured from the game's own).
 - **Building:** look at a room's door in first person and press your interact key, or click its **icon on the overview** (the plus badge over every room you can build next, its hexagon as big as the area icons; it glows while its panel is open). Both show what it needs and what you have of each (from your stash, as the hideout's own screens count it), the build time, and why it's locked if it is; the panel's **Build** button starts it. While a room is being built its icon shows the time left.
 - On the **overview** a built room shows from above like the hideout's own rooms, so the annex fills in room by room.
+
+![The build panel](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/build-panel.jpg)
 
 | Room | Cost | Build time |
 | --- | --- | --- |
@@ -116,6 +120,8 @@ HideoutExtensionsApi.RoomReady += room =>
 
 ## Moving the hideout's areas
 
+![Moving the Hall of Fame on the overview](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/moving-areas.jpg)
+
 On the overview, **right-click an area's icon** and the whole area follows your mouse across the floor: everything its icon highlights, with its lights, its click zone, its icon and the view the camera flies to when you open it (they all live under the area in the game's scene). **R** turns it a quarter, **Shift+R** 15°; **left-click** puts it down, **right-click** puts it back where it was, **Backspace** back where the game has it. Where each area stands is kept per profile in `BepInEx/config/jrs.hideoutextensions.layout.<profile id>.json` and set again every visit; deleting the file puts them all back.
 
 An area's lights go with it (its light groups are mostly its own: spotlights aimed at its displays, candles on its shelves, bulbs on its cables), and the spot it leaves gets the annex rooms' lamps (tubes or bulbs, following the light switch, hung from the ceiling there and not over where an area stands now), which go again when you put the area back; `Lights stay in the room` in the config's `Moving areas` section leaves them behind instead. What's built into the bunker for an area stays where it was (the gap it leaves is bare), and what an area hangs on its walls (shelves, the punching bag, paint) goes with it, so it only looks right against walls like the old ones. The emergency wall can't be moved (it carries the room the annex is in); the config's `Moving areas` section turns moving off or adds areas that stay put.
@@ -135,8 +141,3 @@ The Halloween decorations are a hideout lighting mode the game switches to on yo
 - A door through the hideout's own walls is a real doorway: the game keeps those walls on the graphics card only, so the mod reads the meshes the doorway goes through back from there once per visit (about 50 ms), cuts the doorway out of a copy and swaps the copy in (the originals go back when the hideout unloads), then lines the gap between the two walls with concrete. If that fails, or something it can't cut still blocks the doorway, the log says so and the doors fall back to dark doorways that move you through. The doorways between the annex's own rooms are real openings.
 - The rooms are plain, lit by two lamps each; furnishing is up to mods (or a later version).
 - The game's navmesh was baked before the annex existed, so the mod builds one for its rooms each visit (from their own colliders) and links it to the hideout's through every doorway; pathfinding (K9 Companion's dog) finds its way in. A shut door is in the way, and areas you've moved keep the hideout's old navmesh.
-- Not tried in the game yet: the server side passed its checks on a copy of the SPT server; the client side only builds.
-
-## Build
-
-`Shaders\build_shader.ps1` makes `Client\hideoutextensions.bundle` (the overview cap's shader) with Unity 2022.3.43; Unity needs Unity Hub signed in (the free Personal licence). `build.ps1` builds both halves, packs `dist/HideoutExtensions-<version>.zip` and installs into `F:\SPT` (`-SPTPath` to change, `-NoInstall` to only pack).
