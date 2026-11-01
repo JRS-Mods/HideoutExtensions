@@ -1,0 +1,22 @@
+{
+  "id": "6a70e5c0a1b2c3d4e5f60001",
+  "name": "Annex corridor",
+  "description": "The sealed corridor behind the gym's back wall, opened up and lit: the way into the annex.",
+  "room": { "min": [1.6, 13.2], "max": [13.42, 16.34], "height": 3.1, "lamps": 3, "style": "existing",
+            "blocks": [ { "min": [11.8, 1.85, 13.19], "max": [13.42, 3.11, 13.54] },
+                        { "min": [1.55, 0.0, 13.19], "max": [1.6, 3.11, 16.36] } ] },
+  "door": { "position": [7.3, 0.0, 12.78], "facing": 180 },
+  "inside": { "position": [7.3, 0.0, 13.19], "facing": 0 },
+  "hideoutEdits": [
+    { "path": "23_gym/level1/highlight_transform/Punching_bag_02", "move": [0.5, 0.0, 0.0] },
+    { "path": "23_gym/level1/highlight_transform/gym_sportMat1", "hide": true }
+  ],
+  "requirements": [
+    { "template": "5449016a4bdc2d6f028b456f", "count": 150000 },
+    { "template": "590c31c586f774245e3141b2", "count": 3 },
+    { "template": "57347c5b245977448d35f6e1", "count": 4 },
+    { "template": "59e35de086f7741778269d84", "count": 1 }
+  ],
+  "buildSeconds": 14400,
+  "unlock": { "area": "EmergencyWall", "level": 6, "why": "Tidy up the room behind the emergency wall first (Emergency Wall level 6)" }
+}

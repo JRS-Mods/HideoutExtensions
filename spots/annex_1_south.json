@@ -1,0 +1,31 @@
+{
+  "id": "6a70e5c0a1b2c3d4e5f60005",
+  "name": "Annex south room",
+  "description": "The first room off the annex corridor: two bays under a beam on pillars, like the room behind the emergency wall.",
+  "room": {
+    "min": [1.6, 16.95],
+    "max": [14.4, 23.25],
+    "height": 3.1,
+    "lamps": 4,
+    "style": "hideout",
+    "pillarWalls": [
+      { "from": [8.0, 16.95], "to": [8.0, 23.25] }
+    ]
+  },
+  "door": {
+    "position": [4.75, 0.0, 16.36],
+    "facing": 180
+  },
+  "inside": {
+    "position": [4.75, 0.0, 16.95],
+    "facing": 0
+  },
+  "after": "6a70e5c0a1b2c3d4e5f60001",
+  "requirements": [
+    { "template": "5449016a4bdc2d6f028b456f", "count": 120000 },
+    { "template": "590c31c586f774245e3141b2", "count": 2 },
+    { "template": "57347c5b245977448d35f6e1", "count": 3 },
+    { "template": "59e35ef086f7741777737012", "count": 1 }
+  ],
+  "buildSeconds": 10800
+}
