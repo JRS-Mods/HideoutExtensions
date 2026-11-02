@@ -53,8 +53,10 @@ namespace HideoutExtensions
         private static readonly List<MovableThing> things = new List<MovableThing>();
         // The lamps hung where a moved area used to stand.
         private static readonly Dictionary<HideoutArea, GameObject> vacated = new Dictionary<HideoutArea, GameObject>();
-        private static float nextVacate;
+        private static float nextVacate, vacateEvery = 2;
         private static List<HideoutArea> areaList;
+        // Every moved area has its lamps (or can't have any): nothing to check until something moves again.
+        private static bool lampsDone;
         private const float LampSpacing = 3.5f;
 
         // The move under way: the area or another mod's thing, where it was when picked up, and the screen in front of the game.
@@ -130,6 +132,7 @@ namespace HideoutExtensions
             if (style == null)
             {
                 if (homes.Count > 0) { homes.Clear(); vacated.Clear(); areaList = null; Stop(); owner = null; }
+                lampsDone = false; vacateEvery = 2;
                 if (!Enabled.Value || (style = HideoutScene.Style) == null) return;
                 if (!LoadLayout()) { style = null; return; }   // no profile yet: next time
                 settleUntil = Time.unscaledTime + 15;
@@ -140,7 +143,14 @@ namespace HideoutExtensions
                 // (once the annex rooms are known, so none goes into one that isn't built).
                 if (Time.unscaledTime < settleUntil && Time.frameCount % 30 == 0 && (Extensions.Ready || Extensions.Off)) PlaceAll();
                 // Lamps where moved areas stood (once the rooms' parts are there to copy them from).
-                if (moving == null && Time.unscaledTime >= nextVacate) { nextVacate = Time.unscaledTime + 2; LightVacated(false); }
+                // The hideout stays loaded behind every menu, so this mustn't keep searching it: once all are lit it stops,
+                // and while some area isn't ready for lamps it looks less and less often.
+                if (moving == null && Time.unscaledTime >= nextVacate)
+                {
+                    LightVacated(false);
+                    vacateEvery = lampsDone ? 2 : Mathf.Min(vacateEvery * 2, 30);
+                    nextVacate = Time.unscaledTime + vacateEvery;
+                }
                 if (thing != null) MoveThing();
                 else if (moving != null) Move();
                 else if (Enabled.Value && Input.GetMouseButtonDown(1) && Overview()) Pick();
@@ -166,9 +176,17 @@ namespace HideoutExtensions
         private static readonly Dictionary<GameObject, string> unmovable = new Dictionary<GameObject, string>();
         internal static void AddUnmovable(GameObject icon, string reason) { if (icon != null) unmovable[icon] = reason; }
 
+        // The hideout's areas, searched for once a visit (again only if the hideout replaced one).
+        private static List<HideoutArea> Areas()
+        {
+            if (areaList == null || areaList.Any(a => a == null))
+                areaList = style.scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<HideoutArea>(true)).ToList();
+            return areaList;
+        }
+
         private static void PlaceAll()
         {
-            foreach (HideoutArea area in style.scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<HideoutArea>(true)))
+            foreach (HideoutArea area in Areas())
             {
                 if (Key(area) == null || area == moving) continue;
                 Home home = HomeOf(area);
@@ -358,26 +376,29 @@ namespace HideoutExtensions
         {
             SceneParts parts = Extensions.Parts;
             if (parts == null || style == null) return;
-            // Nothing to do while every moved area has its lamps (most of the time); the areas are looked up once a visit.
-            if (!again && layout.Count == vacated.Count && vacated.Values.All(v => v != null)) return;
-            if (areaList == null || areaList.Any(a => a == null || Key(a) == null))
-                areaList = style.scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<HideoutArea>(true)).ToList();
-            var areas = areaList.Where(a => a != null && Key(a) != null).ToList();
+            if (again) { lampsDone = false; vacateEvery = 2; }
+            else if (lampsDone && vacated.Values.All(v => v != null)) return;
+            // Some areas have no data until the hideout's been set up, which in the menus can be never: they're skipped
+            // (and looked at again later), never searched for through the scene again.
+            var areas = Areas().Where(a => Key(a) != null).ToList();
+            bool waiting = areas.Count == 0 || areas.Count < areaList.Count;
             foreach (HideoutArea area in areas)
             {
                 bool away = Placed(area, out Placement p) && (Mathf.Abs(p.X) > .5f || Mathf.Abs(p.Z) > .5f || Mathf.Abs(Mathf.DeltaAngle(p.Yaw, 0)) > 1);
                 vacated.TryGetValue(area, out GameObject lamps);
                 if (!away || again) { if (lamps != null) UnityEngine.Object.Destroy(lamps); vacated.Remove(area); lamps = null; }
                 if (!away || lamps != null) continue;
-                try { Hang(area, areas, parts); }
+                try { if (!Hang(area, areas, parts)) waiting = true; }
                 catch (Exception e) { Plugin.Log.LogWarning($"Lamps where {Key(area)} stood: {e.Message}"); }
             }
+            lampsDone = !waiting;
         }
 
-        private static void Hang(HideoutArea area, List<HideoutArea> areas, SceneParts parts)
+        // False if the area isn't set up yet (it shows nothing), so it's tried again later.
+        private static bool Hang(HideoutArea area, List<HideoutArea> areas, SceneParts parts)
         {
             Home home = HomeOf(area);
-            if (!Footprint(area, home.Position, home.Rotation, out Rect spot)) return;   // not set up yet: next time
+            if (!Footprint(area, home.Position, home.Rotation, out Rect spot)) return false;
             var taken = areas.Select(a => Footprint(a, a.transform.position, a.transform.rotation, out Rect r) ? r : Rect.zero).Where(r => r.width > 0).ToList();
             var holder = new GameObject("Hideout extensions lamps where " + Key(area) + " stood");
             UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(holder, style.scene);
@@ -398,6 +419,7 @@ namespace HideoutExtensions
                 if (tube != null || bulb != null) { Lighting.Add(tube, bulb); hung++; }
             }
             if (hung > 0) Plugin.Log.LogInfo($"{hung} lamp(s) hung where {Key(area)} stood.");
+            return true;
         }
 
         // Where an area's things stand on the floor (x, z) at a pose, from its shown models (not its lights); false if

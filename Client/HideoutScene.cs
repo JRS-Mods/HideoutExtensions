@@ -30,5 +30,20 @@ namespace HideoutExtensions
                 return style = GameObject.Find("STYLE");
             }
         }
+
+        private static HideoutScreenRear screen;
+        private static float nextScreen;
+
+        /// <summary>The hideout is on screen: its overview, or walking round it. The screen is found once and kept.</summary>
+        internal static bool Shown
+        {
+            get
+            {
+                if (InRaid) return false;
+                if (Singleton<GameWorld>.Instantiated && Singleton<GameWorld>.Instance is HideoutGameWorld world && world.MainPlayer != null && world.MainPlayer.gameObject.activeInHierarchy) return true;
+                if (screen == null && Time.unscaledTime >= nextScreen) { nextScreen = Time.unscaledTime + 2; screen = Object.FindObjectOfType<HideoutScreenRear>(true); }
+                return screen != null && screen.isActiveAndEnabled;
+            }
+        }
     }
 }

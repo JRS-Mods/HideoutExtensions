@@ -4,6 +4,8 @@ By JRS.
 
 Hideout Extensions lets you build new rooms onto your hideout, move the hideout's areas wherever you like, and makes the hideout run a bit lighter. Other mods can use it too: they can add their own rooms, furnish the rooms, and let players move their own things around the hideout.
 
+What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
+
 ![The annex from the overview: the corridor behind the gym, the south room, and the north room's build icon](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/annex-overview.jpg)
 
 ## Contents

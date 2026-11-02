@@ -36,7 +36,12 @@ namespace HideoutExtensions
         private static GameObject root, fixtures;
         private static Transform styleRoot;
         private static SceneParts parts;
-        private static float nextLook, nextState, refetchAt, nextWalker;
+        private static float nextLook, lookEvery = 2, nextState, refetchAt, nextWalker;
+        // What rooms are made of, searched for once per hideout (the search goes through the whole scene).
+        private static GameObject partsFrom;
+        private static SceneParts foundParts;
+        // The hideout whose rooms something else removed (they wait for you to open it).
+        private static GameObject removedFrom;
         private static int failedScene = -1;
 
         private sealed class Reply { [JsonProperty("ready")] public bool Ready { get; set; } [JsonProperty("spots")] public List<SpotInfo> Spots { get; set; } }
@@ -50,10 +55,26 @@ namespace HideoutExtensions
         {
             if (root == null)
             {
-                if (sites.Count > 0) Clear();
+                if (sites.Count > 0)
+                {
+                    // Gone with the hideout still there: something else removed the rooms. Setting them up again straight
+                    // away made a loop (every couple of seconds, in every menu); they're made again when you open the hideout.
+                    removedFrom = partsFrom != null && HideoutScene.Style == partsFrom ? partsFrom : null;
+                    if (removedFrom != null) Plugin.Log.LogWarning("The hideout's extension rooms were removed by something else; they'll be set up again when you open the hideout.");
+                    Clear();
+                }
                 if (!enabled || Time.unscaledTime < nextLook) return;
-                nextLook = Time.unscaledTime + 2;
-                SetUp();
+                if (removedFrom != null)
+                {
+                    if (HideoutScene.Style == removedFrom && !HideoutScene.Shown) return;
+                    removedFrom = null;
+                }
+                // The hideout stays loaded behind every menu: a try that got as far as the server and still left nothing set
+                // up is tried again less and less often, rather than every couple of seconds for the rest of the session.
+                bool tried = SetUp();
+                if (!tried) lookEvery = 2;
+                else if (root == null) lookEvery = Mathf.Min(lookEvery * 2, 30);
+                nextLook = Time.unscaledTime + lookEvery;
                 return;
             }
             if (!enabled) return;
@@ -94,24 +115,26 @@ namespace HideoutExtensions
         /// <summary>What rooms are made of this visit (null until the hideout's set up, or without the server mod).</summary>
         internal static SceneParts Parts => parts;
 
-        private static void SetUp()
+        // True if it got as far as asking the server.
+        private static bool SetUp()
         {
             GameObject style = HideoutScene.Style;
-            if (style == null || style.transform.Find("Wall") == null || style.scene.handle == failedScene) return;
+            if (style == null || style.transform.Find("Wall") == null || style.scene.handle == failedScene) return false;
             try
             {
                 Reply reply = Fetch();
                 // No answer: the server mod isn't there, so not again this visit. Not ready: no character yet, ask later.
-                if (reply == null) { failedScene = style.scene.handle; return; }
-                if (!reply.Ready) return;
+                if (reply == null) { failedScene = style.scene.handle; return true; }
+                if (!reply.Ready) return true;
                 SpotList.Clear(); SpotList.AddRange(reply.Spots ?? new List<SpotInfo>());
-                parts = SceneParts.Find(style.transform);
+                if (partsFrom != style || foundParts == null) { foundParts = SceneParts.Find(style.transform); partsFrom = style; }
+                parts = foundParts;
                 styleRoot = style.transform;
                 if (!parts.Complete)
                 {
                     failedScene = style.scene.handle;
                     Plugin.Log.LogError("The hideout is missing parts a room is made of (see above); no room extensions this visit.");
-                    return;
+                    return true;
                 }
                 root = new GameObject("Hideout extensions");
                 SceneManager.MoveGameObjectToScene(root, style.scene);
@@ -128,6 +151,7 @@ namespace HideoutExtensions
                 if (root != null) UnityEngine.Object.Destroy(root);
                 root = null; sites.Clear(); RoomList.Clear();
             }
+            return true;
         }
 
         /// <summary>Everything but the rooms' own frames (which mods may have furnished) is made again from what's built.</summary>
