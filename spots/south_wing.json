@@ -75,7 +75,7 @@
       "count": 1
     }
   ],
-  "buildSeconds": 28800,
+  "buildSeconds": 7200,
   "unlock": {
     "area": "EmergencyWall",
     "level": 6,

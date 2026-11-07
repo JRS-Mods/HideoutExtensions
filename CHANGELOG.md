@@ -22,6 +22,10 @@ Needs SPT 4.1.x (made on 4.1.6). Install over 1.1.0 and restart the SPT server; 
 
 - **Hideout Interiors**, a separate mod for moving the hideout's single things (a box, a shelf, a lamp), giving them to other areas, hiding them and decorating with copies. It works with or without Hideout Extensions; things you give to an area move with it when you move the area here.
 
+### Changed
+
+- **Shorter builds:** the annex corridor 1 h, south room 45 min, north room 1 h (they were 4, 3 and 5 hours); the new rooms 1 to 2.5 h.
+
 ### Fixed
 
 - **A moved area stays under the mouse.** Picked up from its icon, an area could sit far from the cursor when the game draws the 3D view at a lower resolution than the window.

@@ -61,9 +61,9 @@ Four more parts of the hideout are built the same way, each on its own:
 
 | Room | Where you get in | Needs | Cost | Build time |
 | --- | --- | --- | --- | --- |
-| East hall (12.5 x 12.5 m) | Knocks out the east walls of the gym and the mannequin room, leaving two wide openings. A locker, a poster and the rubble along those walls go | Emergency wall level 6 | 250,000 roubles, 4 packs of nails, 5 bolts, 1 toolset | 6 h |
-| South wing (18 x 16 m) | A door in the long room's end wall, between the air filter and the heating. The barrels on the pallet in front of it go | Emergency wall level 6 | 400,000 roubles, 5 packs of nails, 6 bolts, 1 electric drill, 1 toolset | 8 h |
-| West hall (10.5 x 37 m) | A door in the main hall's wall beside the stash, where the tall safe stood (the safe goes). One long room behind the main hall and down the side of the range | Emergency wall level 6 | 600,000 roubles, 8 packs of nails, 9 bolts, 1 electric drill, 1 toolset, 1 pack of screws | 10 h |
+| East hall (12.5 x 12.5 m) | Knocks out the east walls of the gym and the mannequin room, leaving two wide openings. A locker, a poster and the rubble along those walls go | Emergency wall level 6 | 250,000 roubles, 4 packs of nails, 5 bolts, 1 toolset | 1.5 h |
+| South wing (18 x 16 m) | A door in the long room's end wall, between the air filter and the heating. The barrels on the pallet in front of it go | Emergency wall level 6 | 400,000 roubles, 5 packs of nails, 6 bolts, 1 electric drill, 1 toolset | 2 h |
+| West hall (10.5 x 37 m) | A door in the main hall's wall beside the stash, where the tall safe stood (the safe goes). One long room behind the main hall and down the side of the range | Emergency wall level 6 | 600,000 roubles, 8 packs of nails, 9 bolts, 1 electric drill, 1 toolset, 1 pack of screws | 2.5 h |
 | Range extension (9 x 40 m) | Breaks out the range's end wall, leaving a wide opening | None: it's there from the start | Free | No build |
 
 The range extension takes the range from about 49 m to about 89 m, with a line and white distance marks every 10 m, and at each mark a row of six poppers and three white paper targets.

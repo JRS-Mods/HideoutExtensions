@@ -3,25 +3,56 @@
   "name": "Annex north room",
   "description": "North of the annex south room: two more bays under a beam on pillars.",
   "room": {
-    "min": [1.6, 23.45],
-    "max": [14.4, 29.75],
+    "min": [
+      1.6,
+      23.45
+    ],
+    "max": [
+      14.4,
+      29.75
+    ],
     "height": 3.1,
     "lamps": 4,
     "style": "hideout",
     "pillarWalls": [
-      { "from": [8.0, 23.45], "to": [8.0, 29.75] }
+      {
+        "from": [
+          8.0,
+          23.45
+        ],
+        "to": [
+          8.0,
+          29.75
+        ]
+      }
     ]
   },
   "opening": {
     "from": "6a70e5c0a1b2c3d4e5f60005",
-    "position": [11.25, 0.0, 23.35],
+    "position": [
+      11.25,
+      0.0,
+      23.35
+    ],
     "facing": 180
   },
   "requirements": [
-    { "template": "5449016a4bdc2d6f028b456f", "count": 200000 },
-    { "template": "590c31c586f774245e3141b2", "count": 3 },
-    { "template": "57347c5b245977448d35f6e1", "count": 4 },
-    { "template": "590c2e1186f77425357b6124", "count": 1 }
+    {
+      "template": "5449016a4bdc2d6f028b456f",
+      "count": 200000
+    },
+    {
+      "template": "590c31c586f774245e3141b2",
+      "count": 3
+    },
+    {
+      "template": "57347c5b245977448d35f6e1",
+      "count": 4
+    },
+    {
+      "template": "590c2e1186f77425357b6124",
+      "count": 1
+    }
   ],
-  "buildSeconds": 18000
+  "buildSeconds": 3600
 }
