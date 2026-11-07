@@ -33,7 +33,7 @@ namespace HideoutExtensions
                 var sources = new List<NavMeshBuildSource>();
                 foreach (BoxCollider box in root.GetComponentsInChildren<BoxCollider>())
                 {
-                    if (box.isTrigger || !box.enabled || InDoor(box.transform, root)) continue;
+                    if (box.isTrigger || !box.enabled || box.name == Room.BulletBoxName || InDoor(box.transform, root)) continue;
                     sources.Add(new NavMeshBuildSource
                     {
                         shape = NavMeshBuildSourceShape.Box,

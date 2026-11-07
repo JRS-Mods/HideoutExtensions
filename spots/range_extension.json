@@ -1,0 +1,412 @@
+{
+  "id": "6a70e5c0a1b2c3d4e5f6000b",
+  "name": "Range extension",
+  "description": "Breaks out the shooting range's end wall and carries the range on another 40 m. Targets at every 10 m, and a sign on the firing line to bring up the ones you want.",
+  "room": {
+    "min": [
+      -7.327,
+      58.476
+    ],
+    "max": [
+      1.273,
+      98.5
+    ],
+    "height": 3.1,
+    "lamps": 9,
+    "style": "hideout",
+    "props": [
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Popper_targets/01_row_targets",
+        "move": [
+          0,
+          0,
+          4.86
+        ],
+        "live": true,
+        "distance": 10
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/01_rail_target",
+        "move": [
+          0,
+          0,
+          4.86
+        ],
+        "live": true,
+        "distance": 10
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/02_rail_target",
+        "move": [
+          0,
+          0,
+          -2.68
+        ],
+        "live": true,
+        "distance": 10,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/03_rail_target",
+        "move": [
+          0,
+          0,
+          -9.12
+        ],
+        "live": true,
+        "distance": 10,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Popper_targets/01_row_targets",
+        "move": [
+          0,
+          0,
+          14.86
+        ],
+        "live": true,
+        "distance": 20
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/01_rail_target",
+        "move": [
+          0,
+          0,
+          14.86
+        ],
+        "live": true,
+        "distance": 20
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/02_rail_target",
+        "move": [
+          0,
+          0,
+          7.32
+        ],
+        "live": true,
+        "distance": 20,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/03_rail_target",
+        "move": [
+          0,
+          0,
+          0.88
+        ],
+        "live": true,
+        "distance": 20,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Popper_targets/01_row_targets",
+        "move": [
+          0,
+          0,
+          24.86
+        ],
+        "live": true,
+        "distance": 30
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/01_rail_target",
+        "move": [
+          0,
+          0,
+          24.86
+        ],
+        "live": true,
+        "distance": 30
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/02_rail_target",
+        "move": [
+          0,
+          0,
+          17.32
+        ],
+        "live": true,
+        "distance": 30,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/03_rail_target",
+        "move": [
+          0,
+          0,
+          10.88
+        ],
+        "live": true,
+        "distance": 30,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Popper_targets/01_row_targets",
+        "move": [
+          0,
+          0,
+          34.86
+        ],
+        "live": true,
+        "distance": 40
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/01_rail_target",
+        "move": [
+          0,
+          0,
+          34.86
+        ],
+        "live": true,
+        "distance": 40
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/02_rail_target",
+        "move": [
+          0,
+          0,
+          27.32
+        ],
+        "live": true,
+        "distance": 40,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/03_rail_target",
+        "move": [
+          0,
+          0,
+          20.88
+        ],
+        "live": true,
+        "distance": 40,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Popper_targets/01_row_targets",
+        "move": [
+          0,
+          0,
+          44.86
+        ],
+        "live": true,
+        "distance": 50
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/01_rail_target",
+        "move": [
+          0,
+          0,
+          44.86
+        ],
+        "live": true,
+        "distance": 50
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/02_rail_target",
+        "move": [
+          0,
+          0,
+          37.32
+        ],
+        "live": true,
+        "distance": 50,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/03_rail_target",
+        "move": [
+          0,
+          0,
+          30.88
+        ],
+        "live": true,
+        "distance": 50,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Popper_targets/01_row_targets",
+        "move": [
+          0,
+          0,
+          54.86
+        ],
+        "live": true,
+        "distance": 60
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/01_rail_target",
+        "move": [
+          0,
+          0,
+          54.86
+        ],
+        "live": true,
+        "distance": 60
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/02_rail_target",
+        "move": [
+          0,
+          0,
+          47.32
+        ],
+        "live": true,
+        "distance": 60,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/03_rail_target",
+        "move": [
+          0,
+          0,
+          40.88
+        ],
+        "live": true,
+        "distance": 60,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Popper_targets/01_row_targets",
+        "move": [
+          0,
+          0,
+          64.86
+        ],
+        "live": true,
+        "distance": 70
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/01_rail_target",
+        "move": [
+          0,
+          0,
+          64.86
+        ],
+        "live": true,
+        "distance": 70
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/02_rail_target",
+        "move": [
+          0,
+          0,
+          57.32
+        ],
+        "live": true,
+        "distance": 70,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/03_rail_target",
+        "move": [
+          0,
+          0,
+          50.88
+        ],
+        "live": true,
+        "distance": 70,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Popper_targets/01_row_targets",
+        "move": [
+          0,
+          0,
+          74.86
+        ],
+        "live": true,
+        "distance": 80
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/01_rail_target",
+        "move": [
+          0,
+          0,
+          74.86
+        ],
+        "live": true,
+        "distance": 80
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/02_rail_target",
+        "move": [
+          0,
+          0,
+          67.32
+        ],
+        "live": true,
+        "distance": 80,
+        "targetOnly": true
+      },
+      {
+        "path": "12_shooting_range/level3/highlight_transform/Rail_targets/03_rail_target",
+        "move": [
+          0,
+          0,
+          60.88
+        ],
+        "live": true,
+        "distance": 80,
+        "targetOnly": true
+      }
+    ],
+    "rangeMarks": {
+      "zero": 10,
+      "first": 10,
+      "step": 10,
+      "count": 8,
+      "west": -7.31,
+      "east": 1.25,
+      "panel": [
+        -1.45,
+        0.74,
+        9.8
+      ]
+    }
+  },
+  "door": {
+    "position": [
+      -3.027,
+      0.0,
+      58.276
+    ],
+    "facing": 180,
+    "width": 8.45,
+    "height": 2.49,
+    "open": true
+  },
+  "inside": {
+    "position": [
+      -3.027,
+      0.0,
+      58.476
+    ],
+    "facing": 0
+  },
+  "requirements": [
+    {
+      "template": "5449016a4bdc2d6f028b456f",
+      "count": 500000
+    },
+    {
+      "template": "590c31c586f774245e3141b2",
+      "count": 6
+    },
+    {
+      "template": "57347c5b245977448d35f6e1",
+      "count": 8
+    },
+    {
+      "template": "59e35de086f7741778269d84",
+      "count": 1
+    },
+    {
+      "template": "590c2e1186f77425357b6124",
+      "count": 2
+    }
+  ],
+  "buildSeconds": 28800,
+  "built": true
+}

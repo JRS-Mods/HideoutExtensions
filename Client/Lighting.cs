@@ -17,9 +17,31 @@ namespace HideoutExtensions
     /// </summary>
     internal static class Lighting
     {
-        private sealed class Fixture { public Transform Tube, Bulb; }
+        private sealed class Fixture { public Transform Tube, Bulb; public Light Fill; }
+
+        // The soft light at each lamp, as the game's own have (their "FakeGI" and "VolumetricGI"): wide, weak, and no shadows. Without
+        // it a lamp lights the patch of floor under it and the walls stay black. It shines through walls like theirs, so it stays short.
+        private const float FillRange = 7.5f, FillStrength = .55f;
+        private static readonly Color TubeColour = new Color(1f, .94f, .82f), BulbColour = new Color(1f, .8f, .58f);
+
+        internal static Light Fill(Transform parent, Vector3 at) => Soft(parent, at, "Extension fill light", FillRange, FillStrength);
+
+        internal static Light Soft(Transform parent, Vector3 at, string name, float range, float strength)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.position = at;
+            var light = go.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.range = range;
+            light.intensity = strength;
+            light.color = TubeColour;
+            light.shadows = LightShadows.None;
+            return light;
+        }
 
         private static readonly List<Fixture> fixtures = new List<Fixture>();
+        private static readonly List<Light> extras = new List<Light>();
         private static ELightingLevel? level;
 
         internal static void Patch(Harmony harmony)
@@ -34,6 +56,8 @@ namespace HideoutExtensions
             Lighting.level = level;
             fixtures.RemoveAll(f => f.Tube == null && f.Bulb == null);
             foreach (Fixture fixture in fixtures) Apply(fixture);
+            extras.RemoveAll(l => l == null);
+            foreach (Light light in extras) Apply(light);
         }
 
         private static ELightingLevel Current
@@ -48,16 +72,31 @@ namespace HideoutExtensions
         }
 
         /// <summary>A lamp spot's two fittings (either may be missing), switched to the current setting.</summary>
-        internal static void Add(Transform tube, Transform bulb)
+        internal static void Add(Transform tube, Transform bulb, Light fill = null)
         {
             if (tube == null && bulb == null) return;
             fixtures.RemoveAll(f => f.Tube == null && f.Bulb == null);
-            var fixture = new Fixture { Tube = tube, Bulb = bulb };
+            var fixture = new Fixture { Tube = tube, Bulb = bulb, Fill = fill };
             fixtures.Add(fixture);
             Apply(fixture);
         }
 
-        internal static void Clear() { fixtures.Clear(); level = null; }
+        internal static void Clear() { fixtures.Clear(); extras.Clear(); level = null; }
+
+        /// <summary>A light of the mod's own that follows the switch, away from any lamp.</summary>
+        internal static void Add(Light light)
+        {
+            extras.RemoveAll(l => l == null);
+            extras.Add(light);
+            Apply(light);
+        }
+
+        private static void Apply(Light light)
+        {
+            ELightingLevel now = Current;
+            light.enabled = now != ELightingLevel.Off && now != ELightingLevel.Candles;
+            light.color = now == ELightingLevel.LightBulbs || now == ELightingLevel.ChristmasLights || now == ELightingLevel.HalloweenLights ? BulbColour : TubeColour;
+        }
 
         private static void Apply(Fixture fixture)
         {
@@ -66,6 +105,11 @@ namespace HideoutExtensions
             bool lit = now != ELightingLevel.Off && now != ELightingLevel.Candles;
             Show(fixture.Tube, !bulbs || fixture.Bulb == null, lit);
             Show(fixture.Bulb, bulbs, lit);
+            if (fixture.Fill != null)
+            {
+                fixture.Fill.enabled = lit;
+                fixture.Fill.color = bulbs ? BulbColour : TubeColour;
+            }
         }
 
         private static void Show(Transform fitting, bool shown, bool lit)

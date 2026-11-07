@@ -33,6 +33,9 @@ namespace HideoutExtensions
         private static readonly List<Swap> swaps = new List<Swap>();
         private static string applied;
         private static bool appliedOk;
+        // What the last cut went over: its holes, and every part it found in their way.
+        private static List<Hole> currentHoles = new List<Hole>();
+        private static readonly HashSet<int> partsLookedAt = new HashSet<int>();
 
         private sealed class Swap { public MeshFilter Filter; public MeshCollider Collider; public Mesh Original, Cut; }
 
@@ -62,6 +65,8 @@ namespace HideoutExtensions
             if (key == applied && swaps.All(s => (s.Filter != null || s.Collider != null) && s.Cut != null)) return appliedOk;
             Restore();
             applied = key; appliedOk = true;
+            currentHoles = holes.ToList();
+            partsLookedAt.Clear();
             if (holes.Count == 0) return true;
             try
             {
@@ -86,6 +91,7 @@ namespace HideoutExtensions
                         var list = holes.Where(h => bounds.Intersects(h.World)).ToList();
                         if (list.Count == 0) continue;
                         targets[part] = list;
+                        partsLookedAt.Add(part.GetInstanceID());
                         looked.Add(Path(part.transform));
                     }
 
@@ -149,6 +155,32 @@ namespace HideoutExtensions
                 return false;
             }
         }
+
+        /// <summary>
+        /// Something new stands where a doorway was cut. The game puts the walls in from its customization a moment after the
+        /// hideout loads, and again when you pick another: the first cut then went through a stand-in that's since been switched
+        /// off, and the real wall stands whole in the doorway.
+        /// </summary>
+        public static bool Stale(Transform style)
+        {
+            if (applied == null || currentHoles.Count == 0 || style == null) return false;
+            foreach (MeshFilter filter in style.GetComponentsInChildren<MeshFilter>(false))
+                if (filter.TryGetComponent(out MeshRenderer _) && Unseen(filter, filter.sharedMesh)) return true;
+            foreach (MeshCollider collider in style.GetComponentsInChildren<MeshCollider>(false))
+                if (!collider.convex && Unseen(collider, collider.sharedMesh)) return true;
+            return false;
+        }
+
+        private static bool Unseen(Component part, Mesh mesh)
+        {
+            if (mesh == null || partsLookedAt.Contains(part.GetInstanceID())) return false;
+            Bounds bounds = WorldBounds(mesh.bounds, part.transform.localToWorldMatrix);
+            foreach (Hole hole in currentHoles) if (bounds.Intersects(hole.World)) return true;
+            return false;
+        }
+
+        /// <summary>The next layout cuts everything again.</summary>
+        public static void Invalidate() => Restore();
 
         /// <summary>Puts the game's own meshes back.</summary>
         public static void Restore()

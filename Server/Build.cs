@@ -38,7 +38,7 @@ public sealed class SpotRouter(JsonUtil json, SpotCatalog catalog, ProfileHelper
             return new Dictionary<string, object?>
             {
                 ["id"] = spot.Id, ["name"] = spot.Name, ["description"] = spot.Description,
-                ["room"] = spot.Room, ["door"] = spot.Door, ["inside"] = spot.Inside, ["opening"] = spot.Opening, ["hideoutEdits"] = spot.HideoutEdits, ["after"] = spot.After, ["requirements"] = spot.Requirements, ["buildSeconds"] = spot.BuildSeconds,
+                ["room"] = spot.Room, ["door"] = spot.Door, ["inside"] = spot.Inside, ["moreDoors"] = spot.MoreDoors, ["links"] = spot.Links, ["opening"] = spot.Opening, ["hideoutEdits"] = spot.HideoutEdits, ["after"] = spot.After, ["requirements"] = spot.Requirements, ["buildSeconds"] = spot.BuildSeconds,
                 ["locked"] = pmc != null && state == "none" ? SpotCatalog.Locked(pmc, spot) : null,
                 ["state"] = state, ["completeAt"] = progress?.ImproveCompleteTimestamp ?? 0
             };

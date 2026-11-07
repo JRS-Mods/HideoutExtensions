@@ -36,7 +36,7 @@ namespace HideoutExtensions
         private static GameObject root, fixtures;
         private static Transform styleRoot;
         private static SceneParts parts;
-        private static float nextLook, lookEvery = 2, nextState, refetchAt, nextWalker;
+        private static float nextLook, lookEvery = 2, nextState, refetchAt, nextWalker, nextWallLook;
         // What rooms are made of, searched for once per hideout (the search goes through the whole scene).
         private static GameObject partsFrom;
         private static SceneParts foundParts;
@@ -90,16 +90,49 @@ namespace HideoutExtensions
             if (Time.unscaledTime < nextState) return;
             nextState = Time.unscaledTime + 1;
             var changed = sites.Where(s => s.Update()).ToList();
-            // A new wall, floor or ceiling from the hideout's customization: the rooms in the hall's style follow it.
-            bool restyled = false;
-            try { restyled = styleRoot != null && parts.Restyle(styleRoot); }
-            catch (Exception e) { Plugin.Log.LogWarning("Couldn't check the hideout's customization: " + e.Message); }
-            if (restyled) { Plugin.Log.LogInfo("The hideout's customization changed; the rooms follow it."); Layout(); }
+            // A new wall, floor or ceiling from the hideout's customization: the rooms in the hall's style follow it, and
+            // a doorway cut through the wall it replaced is cut again. Both look through the whole of STYLE, so they run
+            // when the game puts one in (and a slow look besides, in case something else changes them); without the hook,
+            // as often as before.
+            bool look = !styleHooked || styleChanged > 0 || Time.unscaledTime >= nextStyleLook;
+            bool restyled = false, wallsNew = false;
+            if (look)
+            {
+                if (styleChanged > 0) styleChanged--;
+                nextStyleLook = Time.unscaledTime + (styleHooked ? 30 : 0);
+                try { restyled = styleRoot != null && parts.Restyle(styleRoot); }
+                catch (Exception e) { Plugin.Log.LogWarning("Couldn't check the hideout's customization: " + e.Message); }
+                try { wallsNew = styleRoot != null && Time.unscaledTime >= nextWallLook && WallCut.Stale(styleRoot); }
+                catch (Exception e) { Plugin.Log.LogWarning("Couldn't check the hideout's walls: " + e.Message); }
+                if (Time.unscaledTime >= nextWallLook) nextWallLook = Time.unscaledTime + 2;
+            }
+            if (restyled || wallsNew)
+            {
+                if (restyled) Plugin.Log.LogInfo("The hideout's customization changed; the rooms follow it.");
+                if (wallsNew) { Plugin.Log.LogInfo("New walls stand where the doorways were cut; cutting them again."); WallCut.Invalidate(); }
+                Layout();
+            }
             if (changed.Count == 0) return;
             Layout();
             foreach (Site site in changed.Where(s => s.Phase == Site.State.Built && s.WasBuilding))
                 NotificationManager.DisplayMessageNotification(site.Spot.Name + " is ready.");
         }
+
+        // Looks left at the hideout's customization: the game just put a wall, floor or ceiling in (two, a second apart,
+        // so the wall check's own 2 s wait can't swallow it).
+        private static int styleChanged = 2;
+        private static float nextStyleLook;
+        private static bool styleHooked;
+
+        internal static void PatchStyle(HarmonyLib.Harmony harmony)
+        {
+            var set = HarmonyLib.AccessTools.Method(typeof(EFT.Hideout.HideoutCustomizationItemsInstaller), nameof(EFT.Hideout.HideoutCustomizationItemsInstaller.SetItem))
+                      ?? throw new MissingMethodException("HideoutCustomizationItemsInstaller", "SetItem");
+            harmony.Patch(set, postfix: new HarmonyLib.HarmonyMethod(typeof(Extensions), nameof(StyleSet)));
+            styleHooked = true;
+        }
+
+        private static void StyleSet() => styleChanged = 3;
 
         /// <summary>Asks the server again in a moment (after a build starts, for its finishing time).</summary>
         internal static void RefetchSoon() => refetchAt = Time.unscaledTime + 2;
@@ -107,6 +140,7 @@ namespace HideoutExtensions
         internal static Site Find(string id) => sites.FirstOrDefault(s => s.Spot.Id == id);
         // The spots are in from the server and laid out for this visit.
         internal static bool Ready => root != null;
+        internal const string RootName = "Hideout extensions";
 
         // No rooms this visit, and none coming: room extensions are switched off, or were given up on for this hideout
         // (no server mod, or the hideout lacks what rooms are made of).
@@ -136,7 +170,7 @@ namespace HideoutExtensions
                     Plugin.Log.LogError("The hideout is missing parts a room is made of (see above); no room extensions this visit.");
                     return true;
                 }
-                root = new GameObject("Hideout extensions");
+                root = new GameObject(RootName);
                 SceneManager.MoveGameObjectToScene(root, style.scene);
                 foreach (SpotInfo spot in SpotList) sites.Add(new Site(spot));
                 foreach (Site site in sites) site.Update();
@@ -165,13 +199,23 @@ namespace HideoutExtensions
             fixtures.transform.SetParent(root.transform, false);
             var built = sites.Where(s => s.Phase == Site.State.Built).ToList();
 
-            // Changes to the hideout's own things that built spots ask for (moved out of a doorway's way, or hidden).
-            foreach (Site site in built) HideoutEdits.Apply(styleRoot, site.Spot);
+            // Changes to the hideout's own things that spots ask for (moved out of a doorway's way, or hidden): as soon as a
+            // spot's door is there, or the door would stand in the things it's replacing.
+            foreach (Site site in sites.Where(s => s.Phase == Site.State.Built || (s.Offered && s.Spot.Door != null))) HideoutEdits.Apply(styleRoot, site.Spot);
 
             // Built doors through the hideout's own walls: cut for real, or else (see the log) doorways that move you through.
             var throughWalls = built.Where(s => s.Spot.Door != null && s.Spot.Inside != null).ToList();
-            bool cut = WallCut.Apply(root.scene, root.transform, throughWalls.Select(s => WallCut.Box(s.Spot.Name, Point(s.Spot.Door.Position), s.Spot.Door.Facing,
-                Point(s.Spot.Inside.Position), Room.OpeningWidth, Room.OpeningHeight)).ToList());
+            bool cut = WallCut.Apply(root.scene, root.transform, throughWalls.SelectMany(s => Ways(s.Spot).Select(w => WallCut.Box(s.Spot.Name, Point(w.door.Position), w.door.Facing,
+                Point(w.inside.Position), w.door.Width > 0 ? w.door.Width : Room.OpeningWidth, w.door.Height > 0 ? w.door.Height : Room.OpeningHeight))).ToList());
+
+            // The areas' prompt zones out of the doorways (built doors, and the build prompts where doors will be).
+            try
+            {
+                DoorwayClear.Apply(root.scene, sites.Where(s => (s.Phase == Site.State.Built || s.Offered) && s.Spot.Door != null)
+                    .SelectMany(s => Ways(s.Spot)).Where(w => w.door != null)
+                    .Select(w => (Point(w.door.Position), w.door.Facing, w.door.Width > 0 ? w.door.Width : Room.OpeningWidth, w.door.Height > 0 ? w.door.Height : Room.OpeningHeight)).ToList());
+            }
+            catch (Exception e) { Plugin.Log.LogWarning("Couldn't clear the areas' prompts out of the doorways: " + e.Message); }
 
             foreach (Site site in built)
             {
@@ -191,11 +235,18 @@ namespace HideoutExtensions
                 if (site.Spot.Opening != null) doorways.Add(new Doorway { Centre = Point(site.Spot.Opening.Position), Owner = true });
                 foreach (Site child in built.Where(c => c.Spot.Opening?.From == site.Spot.Id))
                     doorways.Add(new Doorway { Centre = Point(child.Spot.Opening.Position), Owner = false });
+                // Doorways to rooms joined on once both are built.
+                foreach (OpeningInfo link in Links(site.Spot))
+                    if (Find(link.From)?.Phase == Site.State.Built) doorways.Add(new Doorway { Centre = Point(link.Position), Owner = true });
+                foreach (Site other in built)
+                    foreach (OpeningInfo link in Links(other.Spot))
+                        if (link.From == site.Spot.Id) doorways.Add(new Doorway { Centre = Point(link.Position), Owner = false });
                 // A cut door's side in this room's own wall (the doorway lines the gap itself).
                 if (cut)
                     foreach (Site door in throughWalls)
-                        foreach (DoorInfo side in new[] { door.Spot.Door, door.Spot.Inside })
-                            if (InWall(site.Spot, Point(side.Position))) doorways.Add(new Doorway { Centre = Point(side.Position), Owner = false });
+                        foreach (var way in Ways(door.Spot))
+                            foreach (DoorInfo side in new[] { way.door, way.inside })
+                                if (InWall(site.Spot, Point(side.Position))) doorways.Add(new Doorway { Centre = Point(side.Position), Owner = false, Width = way.door.Width, Height = way.door.Height });
                 Room.Build(site.Spot, parts, shell, doorways);
                 if (fresh)
                 {
@@ -210,27 +261,34 @@ namespace HideoutExtensions
                 SpotInfo spot = site.Spot;
                 if (spot.Door != null && site.Phase == Site.State.Built && spot.Inside != null)
                 {
-                    // Built: an open frame on each side of the hideout's wall, and the doorway through it; or, uncut, a dark
-                    // doorway on each side, and walking into one puts you out of the other.
-                    foreach (DoorInfo side in new[] { spot.Door, spot.Inside })
+                    int number = 0;
+                    foreach (var way in Ways(spot))
                     {
-                        if (cut && side == spot.Door)
+                        string key = number++ == 0 ? spot.Id : spot.Id + "-" + number;
+                        // A bare opening: nothing in it but the lining, so the room reads as part of the one it opens from.
+                        if (cut && way.door.Open) { Passage.Line(fixtures.transform, parts, way.door, way.inside); continue; }
+                        // Built: an open frame on each side of the hideout's wall, and the doorway through it; or, uncut, a dark
+                        // doorway on each side, and walking into one puts you out of the other.
+                        foreach (DoorInfo side in new[] { way.door, way.inside })
                         {
-                            // Cut: a door you open, close or breach on the side you come from, flush in its frame
-                            // (the other side is a frame round the lined gap), swinging towards you.
-                            Vector3 a = Point(spot.Door.Position), b = Point(spot.Inside.Position);
-                            if (!Working(spot.Id, Point(side.Position), side.Facing))
-                                SwingDoor.Make(parts.Door(fixtures.transform, Point(side.Position), side.Facing), site, spot.Id, parts, (a + b) / 2, side.Facing, Vector3.Distance(a, b));
-                            continue;
+                            if (cut && side == way.door)
+                            {
+                                // Cut: a door you open, close or breach on the side you come from, flush in its frame
+                                // (the other side is a frame round the lined gap), swinging towards you.
+                                Vector3 a = Point(way.door.Position), b = Point(way.inside.Position);
+                                if (!Working(key, Point(side.Position), side.Facing))
+                                    SwingDoor.Make(parts.Door(fixtures.transform, Point(side.Position), side.Facing), site, key, parts, (a + b) / 2, side.Facing, Vector3.Distance(a, b));
+                                continue;
+                            }
+                            parts.Frame(fixtures.transform, Point(side.Position), side.Facing);
+                            if (!cut) Passage.Opening(fixtures.transform, Point(side.Position), side.Facing);
                         }
-                        parts.Frame(fixtures.transform, Point(side.Position), side.Facing);
-                        if (!cut) Passage.Opening(fixtures.transform, Point(side.Position), side.Facing);
-                    }
-                    if (cut) Passage.Line(fixtures.transform, parts, spot.Door, spot.Inside);
-                    else
-                    {
-                        passages.Add(new Passage(site, spot.Door, spot.Inside));
-                        passages.Add(new Passage(site, spot.Inside, spot.Door));
+                        if (cut) Passage.Line(fixtures.transform, parts, way.door, way.inside);
+                        else
+                        {
+                            passages.Add(new Passage(site, way.door, way.inside));
+                            passages.Add(new Passage(site, way.inside, way.door));
+                        }
                     }
                 }
                 else if (spot.Door != null && site.Offered)
@@ -265,22 +323,60 @@ namespace HideoutExtensions
                         site.Zone(fixtures.transform, at, spot.Opening.Facing, Room.Gap / 2, Role.Build);
                     }
                 }
+
+                if (site.Phase == Site.State.Built && spot.Room.RangeMarks?.Panel != null) RangeControl.Panel(fixtures.transform, site, spot.Room.RangeMarks);
+
+                // Doorways between rooms that are both built, whichever came first.
+                if (site.Phase == Site.State.Built)
+                {
+                    int number = 0;
+                    foreach (OpeningInfo link in Links(spot))
+                    {
+                        string key = spot.Id + "-link" + number++;
+                        if (Find(link.From)?.Phase != Site.State.Built) continue;
+                        Vector3 at = Point(link.Position);
+                        Vector3 flush = at + Quaternion.Euler(0, link.Facing, 0) * Vector3.forward * (Room.Gap / 2);
+                        if (Working(key, flush, link.Facing)) continue;
+                        Transform door = parts.Door(fixtures.transform, flush, link.Facing);
+                        if (SwingDoor.Make(door, site, key, parts, at, link.Facing, Room.Gap) != null) continue;
+                        UnityEngine.Object.Destroy(door.gameObject);
+                        parts.Frame(fixtures.transform, flush, link.Facing);
+                    }
+                }
             }
 
             // A navmesh over the built rooms, joined to the hideout's through every real doorway (the dog finds its way in).
             var ways = new List<(Vector3, float, float)>();
             if (cut)
                 foreach (Site site in throughWalls)
-                    ways.Add((Point(site.Spot.Door.Position), site.Spot.Door.Facing, Vector3.Distance(Point(site.Spot.Door.Position), Point(site.Spot.Inside.Position))));
+                    foreach (var way in Ways(site.Spot))
+                        ways.Add((Point(way.door.Position), way.door.Facing, Vector3.Distance(Point(way.door.Position), Point(way.inside.Position))));
             foreach (Site site in built.Where(s => s.Spot.Opening != null))
                 ways.Add((Point(site.Spot.Opening.Position), site.Spot.Opening.Facing, 0f));
+            foreach (Site site in built)
+                foreach (OpeningInfo link in Links(site.Spot))
+                    if (Find(link.From)?.Phase == Site.State.Built) ways.Add((Point(link.Position), link.Facing, 0f));
             Navigation.Build(root.transform, built.Select(s => s.Spot).ToList(), ways);
+
+            // Far rooms: the overview's camera can get to them, and the areas they open off stay drawn from inside them.
+            try { Reach.Apply(root.scene, sites.Where(s => s.Phase == Site.State.Built || s.Offered).Select(s => s.Spot).ToList(), built.Where(s => cut && s.Spot.Door?.Open == true).Select(s => s.Spot).ToList()); }
+            catch (Exception e) { Plugin.Log.LogWarning("Couldn't widen the overview's reach for the rooms: " + e); }
 
             OverviewCap.Apply(parts.Cap, built.Select(s => new Rect(s.Spot.Room.Min[0], s.Spot.Room.Min[1],
                 s.Spot.Room.Max[0] - s.Spot.Room.Min[0], s.Spot.Room.Max[1] - s.Spot.Room.Min[1])).ToList());
         }
 
         internal static Vector3 Point(float[] p) => new Vector3(p[0], p[1], p[2]);
+
+        // Every way through the hideout's walls into a spot's room: its door, then any more it has.
+        private static IEnumerable<(DoorInfo door, DoorInfo inside)> Ways(SpotInfo spot)
+        {
+            yield return (spot.Door, spot.Inside);
+            if (spot.MoreDoors == null) yield break;
+            foreach (DoorPairInfo more in spot.MoreDoors) yield return (more.Door, more.Inside);
+        }
+
+        private static IEnumerable<OpeningInfo> Links(SpotInfo spot) => spot.Links ?? Enumerable.Empty<OpeningInfo>();
 
         // One of the hideout's working doors in a doorway, as it was left; false if there's none to copy (or it failed).
         private static bool Working(string key, Vector3 at, float facing)
@@ -337,12 +433,15 @@ namespace HideoutExtensions
 
         private static void Clear()
         {
+            styleChanged = 3;
             WallCut.Forget();
+            DoorwayClear.Forget();
             Navigation.Clear();
             SwingDoor.Forget();
             HideoutEdits.Forget();
             doors.Clear(); doorStates.Clear();
             Lighting.Clear();
+            RangeControl.Clear();
             styleRoot = null;
             sites.Clear(); RoomList.Clear(); SpotList.Clear(); passages.Clear(); walker = null;
             fixtures = null; parts = null;

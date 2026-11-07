@@ -39,7 +39,13 @@ public sealed class Spot
     [JsonPropertyName("after")] public string? After { get; set; }
     [JsonPropertyName("requirements")] public List<Cost> Requirements { get; set; } = new();
     [JsonPropertyName("buildSeconds")] public int BuildSeconds { get; set; }
+    // There from the start: never built, never locked.
+    [JsonPropertyName("built")] public bool BuiltFromStart { get; set; }
     [JsonPropertyName("unlock")] public UnlockRule? Unlock { get; set; }
+    /// <summary>More ways through the hideout's walls into the same room.</summary>
+    [JsonPropertyName("moreDoors")] public List<DoorPair> MoreDoors { get; set; } = new();
+    /// <summary>Doorways to other spots' rooms that appear once both rooms are built.</summary>
+    [JsonPropertyName("links")] public List<Opening> Links { get; set; } = new();
 
     [JsonIgnore] public MongoId Key { get; set; }
     [JsonIgnore] public string Source { get; set; } = "";
@@ -60,6 +66,10 @@ public sealed class RoomRect
     [JsonPropertyName("pillarWalls")] public List<PillarWall> PillarWalls { get; set; } = new();
     /// <summary>Plain blocks in the room's walls' material, to cover things that poke into it.</summary>
     [JsonPropertyName("blocks")] public List<Block> Blocks { get; set; } = new();
+    /// <summary>Copies of the hideout's own objects standing in the room, as scenery.</summary>
+    [JsonPropertyName("props")] public List<Prop> Props { get; set; } = new();
+    /// <summary>Distance marks down a shooting range.</summary>
+    [JsonPropertyName("rangeMarks")] public RangeMarks? RangeMarks { get; set; }
 }
 
 /// <summary>One of the hideout's own objects, by its path in the scene: moved by Move (metres, x y z) or hidden.</summary>
@@ -90,6 +100,44 @@ public sealed class DoorPlacement
     [JsonPropertyName("position")] public double[] Position { get; set; } = new double[3];
     /// <summary>Which way the door's face looks, in degrees about vertical (0 = +z, 90 = +x): towards where you stand.</summary>
     [JsonPropertyName("facing")] public double Facing { get; set; }
+    /// <summary>The doorway's size in metres (0 = an ordinary door's).</summary>
+    [JsonPropertyName("width")] public double Width { get; set; }
+    [JsonPropertyName("height")] public double Height { get; set; }
+    /// <summary>Once built it's a bare opening, with no door or frame.</summary>
+    [JsonPropertyName("open")] public bool Open { get; set; }
+}
+
+/// <summary>A copy of one of the hideout's own objects, by its path in the scene: at Position, or Move away from the original.</summary>
+public sealed class Prop
+{
+    [JsonPropertyName("path")] public string Path { get; set; } = "";
+    [JsonPropertyName("position")] public double[]? Position { get; set; }
+    [JsonPropertyName("facing")] public double Facing { get; set; }
+    [JsonPropertyName("move")] public double[]? Move { get; set; }
+    /// <summary>A shooting range target that keeps working. Otherwise its scripts are left off.</summary>
+    [JsonPropertyName("live")] public bool Live { get; set; }
+    [JsonPropertyName("distance")] public int Distance { get; set; }
+    [JsonPropertyName("targetOnly")] public bool TargetOnly { get; set; }
+}
+
+/// <summary>Distance marks across a shooting range: measured from Zero along z, First, then every Step, Count of them, between its walls.</summary>
+public sealed class RangeMarks
+{
+    [JsonPropertyName("zero")] public double Zero { get; set; }
+    [JsonPropertyName("first")] public double First { get; set; }
+    [JsonPropertyName("step")] public double Step { get; set; }
+    [JsonPropertyName("count")] public int Count { get; set; }
+    [JsonPropertyName("west")] public double West { get; set; }
+    [JsonPropertyName("east")] public double East { get; set; }
+    /// <summary>Where the control that picks a distance stands.</summary>
+    [JsonPropertyName("panel")] public double[]? Panel { get; set; }
+}
+
+/// <summary>One more way through a wall into the same room.</summary>
+public sealed class DoorPair
+{
+    [JsonPropertyName("door")] public DoorPlacement? Door { get; set; }
+    [JsonPropertyName("inside")] public DoorPlacement? Inside { get; set; }
 }
 
 /// <summary>A doorway into this room from <see cref="From"/>'s room, in the wall between them.</summary>
@@ -198,6 +246,10 @@ public sealed class SpotCatalog(ModHelper mods, JsonUtil json, TemplateTable tem
         if (spot.Opening != null && (spot.Opening.Position?.Length != 3 || !MongoId.IsValidMongoId(spot.Opening.From))) return "opening needs a position (x, y, z) and the id of the room it's reached from";
         if (spot.After != null && !MongoId.IsValidMongoId(spot.After)) return $"after '{spot.After}' isn't a spot id";
         if (spot.BuildSeconds < 0) return "buildSeconds is negative";
+        if (spot.Door != null && (spot.Door.Width < 0 || spot.Door.Height < 0)) return "door width and height can't be negative";
+        if (spot.Room.Props?.Any(p => string.IsNullOrWhiteSpace(p.Path) || (p.Position?.Length != 3 && p.Move?.Length != 3)) == true) return "every prop needs a path, and a position or a move (x, y, z)";
+        if (spot.MoreDoors.Any(d => d.Door?.Position?.Length != 3 || d.Inside?.Position?.Length != 3)) return "every one of moreDoors needs a door and an inside, each with a position (x, y, z)";
+        if (spot.Links.Any(l => l.Position?.Length != 3 || !MongoId.IsValidMongoId(l.From))) return "every link needs a position (x, y, z) and the id of the other room";
         foreach (Cost cost in spot.Requirements)
         {
             if (!MongoId.IsValidMongoId(cost.Template) || !templates.Items.ContainsKey(new MongoId(cost.Template))) return $"requirement {cost.Template} isn't an item in this game";
@@ -213,6 +265,7 @@ public sealed class SpotCatalog(ModHelper mods, JsonUtil json, TemplateTable tem
 
     public static bool Built(PmcData pmc, Spot spot)
     {
+        if (spot.BuiltFromStart) return true;
         HideoutImprovement? i = Progress(pmc, spot);
         return i != null && (i.Completed == true || (i.ImproveCompleteTimestamp is long at && at > 0 && at <= DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
     }

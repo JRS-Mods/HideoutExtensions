@@ -8,7 +8,7 @@ using HarmonyLib;
 
 namespace HideoutExtensions
 {
-    internal enum Role { Build, Door }
+    internal enum Role { Build, Door, RangeControl }
 
     /// <summary>What the game's interaction check finds when you look at a spot, its door or the room's way out.</summary>
     internal sealed class ExtensionInteractive : InteractableObject
@@ -61,6 +61,9 @@ namespace HideoutExtensions
                         state.Actions.Add(new InteractionAction { Name = "Open", Action = door.Open });
                         state.Actions.Add(new InteractionAction { Name = "Breach", Action = door.Breach });
                     }
+                    break;
+                case Role.RangeControl:
+                    RangeControl.Actions(state);
                     break;
                 default:
                     if (site.Current(out long completeAt) == Site.State.Building)

@@ -62,7 +62,12 @@ namespace HideoutExtensions
                             && (areaScreen == null || !areaScreen.isActiveAndEnabled);
             canvas.enabled = overview;
             if (!overview) { panel?.Close(); return; }
-            Camera camera = Camera.main ?? Camera.allCameras.Where(c => c.isActiveAndEnabled).OrderByDescending(c => c.depth).FirstOrDefault();
+            // The camera the game places its own icons with, and the same sum: where the point is in the camera's view, times the
+            // window's size. WorldToScreenPoint works in the camera's own pixels, which aren't the window's while the game renders
+            // at another resolution and upscales, so the icons drifted away from their rooms as the view moved.
+            Camera camera = null;
+            try { camera = EFT.CameraControl.CameraManager.Instance.Camera; } catch (Exception) { }
+            if (camera == null) camera = Camera.main;
             if (camera == null) return;
             if (Time.unscaledTime >= nextSize) { nextSize = Time.unscaledTime + .5f; Measure(); }
             bool text = Time.unscaledTime >= nextText;
@@ -73,9 +78,9 @@ namespace HideoutExtensions
                 icons.TryGetValue(site, out Icon icon);
                 if (!shown) { if (icon != null) icon.Rect.gameObject.SetActive(false); continue; }
                 if (icon == null) icons[site] = icon = Make(site);
-                Vector3 screen = camera.WorldToScreenPoint(Centre(site.Spot));
-                icon.Rect.gameObject.SetActive(screen.z > 0);
-                icon.Rect.position = new Vector3(screen.x, screen.y, 0);
+                Vector3 view = camera.WorldToViewportPoint(Centre(site.Spot));
+                icon.Rect.gameObject.SetActive(view.z > 0);
+                icon.Rect.position = new Vector3(view.x * Screen.width, view.y * Screen.height, 0);
                 icon.Rect.sizeDelta = Vector2.one * iconSize / HexagonShare;
                 icon.Image.sprite = open == site && selected != null ? selected : plain;
                 if (text)
@@ -87,8 +92,10 @@ namespace HideoutExtensions
             if (panel != null && text) panel.Refresh();
         }
 
+        // On the black cap over the room, the surface you see there until it's built, so the icon stays put on it as the view
+        // turns (from down at head height it swung about against the cap).
         private static Vector3 Centre(SpotInfo spot) =>
-            new Vector3((spot.Room.Min[0] + spot.Room.Max[0]) / 2, spot.Room.Floor + 1.6f, (spot.Room.Min[1] + spot.Room.Max[1]) / 2);
+            new Vector3((spot.Room.Min[0] + spot.Room.Max[0]) / 2, spot.Room.Floor + spot.Room.Height, (spot.Room.Min[1] + spot.Room.Max[1]) / 2);
 
         private static bool Create(Transform root)
         {
@@ -120,9 +127,9 @@ namespace HideoutExtensions
             return Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(.5f, .5f), 100);
         }
 
-        // How big the hexagons of the hideout's own area icons are on screen right now (they follow the camera's zoom): the
-        // overview's icons only (an area's own screen has a far bigger one, which made ours huge), the middle size of those
-        // showing, without their glow.
+        // How big the hexagons of the hideout's own area icons are on screen: the overview's icons only (an area's own screen has
+        // a far bigger one, which made ours huge), the middle size of those at full size, without their glow. The game shrinks an
+        // icon to half when its area is off screen, so counting those made ours grow and shrink as the camera turned.
         private static void Measure()
         {
             var sizes = new List<float>();
@@ -130,7 +137,8 @@ namespace HideoutExtensions
             foreach (AreaIcon shown in areaIcons)
             {
                 if (shown == null || shown._backgroundImage == null || !shown._backgroundImage.isActiveAndEnabled) continue;
-                if (shown.GetComponentInParent<AreaWorldPanel>() == null) continue;
+                AreaWorldPanel world = shown.GetComponentInParent<AreaWorldPanel>();
+                if (world == null || world.Offscreen || world.transform.localScale.x < .99f) continue;
                 shown._backgroundImage.rectTransform.GetWorldCorners(corners);
                 Canvas theirs = shown._backgroundImage.canvas;
                 Camera camera = theirs != null && theirs.renderMode != RenderMode.ScreenSpaceOverlay ? theirs.worldCamera ?? Camera.main : null;

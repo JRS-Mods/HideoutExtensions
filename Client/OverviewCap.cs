@@ -53,6 +53,17 @@ namespace HideoutExtensions
             return black;
         }
 
+        /// <summary>A flat colour that ignores the lighting (the cap's shader with no holes), for painted marks; null without the bundle.</summary>
+        public static Material Paint(Color colour)
+        {
+            Shader s = Load();
+            if (s == null) return null;
+            var paint = new Material(s) { name = "HideoutExtensions paint" };
+            paint.SetColor("_Color", colour);
+            paint.SetFloat("_HoleCount", 0);
+            return paint;
+        }
+
         private static Shader Load()
         {
             if (capTried) return shader;

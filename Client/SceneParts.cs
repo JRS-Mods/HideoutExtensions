@@ -19,6 +19,39 @@ namespace HideoutExtensions
     internal sealed class SceneParts
     {
         /// <summary>A set of surfaces for a room, and how densely each is tiled (texture repeats per metre).</summary>
+        /// <summary>The settings of a surface bullets hit, kept apart from the object they came from (the game swaps its walls).</summary>
+        internal sealed class BulletSurface
+        {
+            private readonly EFT.Ballistics.BallisticCollider sample;
+            public readonly int Layer;
+            private readonly int presetId;
+            private readonly EFT.NetworkPackets.EHitType hitType;
+            private readonly EFT.Ballistics.MaterialType material;
+            private readonly float level, chance, ricochet, fragmentation, deviationChance, deviation;
+
+            public BulletSurface(EFT.Ballistics.BallisticCollider from)
+            {
+                Layer = from.gameObject.layer; presetId = from._presetId; hitType = from.HitType; material = from.TypeOfMaterial;
+                level = from.PenetrationLevel; chance = from.PenetrationChance; ricochet = from.RicochetChance;
+                fragmentation = from.FragmentationChance; deviationChance = from.TrajectoryDeviationChance; deviation = from.TrajectoryDeviation;
+            }
+
+            /// <summary>A box bullets hit. Its script wakes when the box is switched on, with these set.</summary>
+            public void Add(Transform parent, Vector3 centre, Vector3 size)
+            {
+                var go = new GameObject(Room.BulletBoxName) { layer = Layer };
+                go.SetActive(false);
+                go.transform.SetParent(parent, false);
+                var box = go.AddComponent<BoxCollider>();
+                box.center = centre; box.size = size;
+                var surface = go.AddComponent<EFT.Ballistics.BallisticCollider>();
+                surface._presetId = presetId; surface.HitType = hitType; surface.TypeOfMaterial = material;
+                surface.PenetrationLevel = level; surface.PenetrationChance = chance; surface.RicochetChance = ricochet;
+                surface.FragmentationChance = fragmentation; surface.TrajectoryDeviationChance = deviationChance; surface.TrajectoryDeviation = deviation;
+                go.SetActive(true);
+            }
+        }
+
         internal sealed class Look
         {
             public Material Wall, Floor, Ceiling;
@@ -30,6 +63,8 @@ namespace HideoutExtensions
         /// <summary>The main hall's painted surfaces (the hideout's current style), and the raw concrete of the room behind the emergency wall.</summary>
         public Look Hideout, Basement;
         public int ColliderLayer;
+        /// <summary>How the hall's concrete takes a bullet, for the rooms' own surfaces, if it was found.</summary>
+        public BulletSurface Bullets;
         /// <summary>The black cap over everything outside the hideout's rooms (what the overview shows as black).</summary>
         public MeshRenderer Cap;
         private Transform door, tube, bulb, live;
@@ -75,6 +110,10 @@ namespace HideoutExtensions
             Transform floorCollider = style.GetComponentsInChildren<MeshCollider>(true).Select(c => c.transform)
                 .FirstOrDefault(t => t.name.StartsWith("Hideout_Floor_", StringComparison.Ordinal) && t.name.EndsWith("_COLLIDER", StringComparison.Ordinal));
             parts.ColliderLayer = floorCollider != null ? floorCollider.gameObject.layer : 0;
+            EFT.Ballistics.BallisticCollider concrete = style.GetComponentsInChildren<EFT.Ballistics.BallisticCollider>(true)
+                .FirstOrDefault(b => b.name.StartsWith("Hideout_Wall_", StringComparison.Ordinal) && b.name.IndexOf("BALLISTIC", StringComparison.Ordinal) >= 0);
+            if (concrete != null) parts.Bullets = new BulletSurface(concrete);
+            else Plugin.Log.LogWarning("The hideout's walls have no bullet surface to copy, so bullets go through the rooms' walls.");
 
             parts.Cap = style.GetComponentsInChildren<MeshRenderer>(true).FirstOrDefault(r => r.name == "Hideout_Stub_LOD0");
             // The emergency wall's level-4 door is the closed one; the later levels have it open.
@@ -215,6 +254,7 @@ namespace HideoutExtensions
         public Transform Bulb(Transform parent, Vector3 at, float ceiling) => Hang(bulb, parent, at, 0, ceiling);
 
         private static int lamps;
+        private const float LampStrength = .75f;
 
         private static Transform Hang(Transform lamp, Transform parent, Vector3 at, float yaw, float ceiling)
         {
@@ -234,6 +274,8 @@ namespace HideoutExtensions
                 controller.OffObjects = (controller.OffObjects ?? new GameObject[0]).Where(o => o != null).ToArray();
                 controller.DestroyedObjects = (controller.DestroyedObjects ?? new GameObject[0]).Where(o => o != null).ToArray();
             }
+            // Spaced evenly over a room, at full strength they overexpose it. Before the lamp script wakes, so it keeps this strength.
+            foreach (Light light in copy.GetComponentsInChildren<Light>(true)) light.intensity *= LampStrength;
             holder.gameObject.SetActive(true);
             // Its top against the ceiling (the hideout's ceilings aren't all the same height, so it can't hang as it does there).
             var shown = copy.GetComponentsInChildren<MeshRenderer>().Where(r => r.name.IndexOf("SHADOW", StringComparison.Ordinal) < 0).ToArray();

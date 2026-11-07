@@ -11,6 +11,8 @@ namespace HideoutExtensions
         public Vector3 Centre;
         /// <summary>The room that owns the doorway (the one reached through it) fills its sides, top and threshold.</summary>
         public bool Owner;
+        /// <summary>Its size in metres (0 = an ordinary door's).</summary>
+        public float Width, Height;
     }
 
     /// <summary>
@@ -22,6 +24,7 @@ namespace HideoutExtensions
     internal static class Room
     {
         public const float Gap = .2f, OpeningWidth = 1.05f, OpeningHeight = 2.13f;
+        public const string BulletBoxName = "Extension bullet surface";
         private const float WallCollider = .1f, SlabCollider = .3f;
 
         public static Vector3 Corner(SpotInfo spot) => new Vector3(spot.Room.Min[0], spot.Room.Floor, spot.Room.Min[1]);
@@ -59,7 +62,7 @@ namespace HideoutExtensions
                     Plugin.Log.LogWarning($"'{spot.Name}': a doorway at {door.Centre} isn't in any of its walls; left out.");
                     continue;
                 }
-                wall.Openings.Add((Vector3.Dot(local - wall.Start, wall.Along), door.Owner));
+                wall.Openings.Add((Vector3.Dot(local - wall.Start, wall.Along), door.Owner, door.Width > 0 ? door.Width : OpeningWidth, door.Height > 0 ? door.Height : OpeningHeight));
             }
 
             Surface(shell, "Floor", look.Floor, new[] { new Vector3(0, 0, 0), new Vector3(0, 0, d), new Vector3(w, 0, d), new Vector3(w, 0, 0) },
@@ -72,54 +75,53 @@ namespace HideoutExtensions
                            shell.InverseTransformPoint(new Vector3(pillars.To[0], spot.Room.Floor, pillars.To[1])), h);
 
             Blocks(spot, look, parts, shell);
+            Props(spot, shell);
+            RangeFittings.Marks(spot, shell);
             Box(shell, parts, "Floor collider", new Vector3(w / 2, -SlabCollider / 2, d / 2), new Vector3(w + 2 * Gap, SlabCollider, d + 2 * Gap));
             Box(shell, parts, "Ceiling collider", new Vector3(w / 2, h + SlabCollider / 2, d / 2), new Vector3(w + 2 * Gap, SlabCollider, d + 2 * Gap));
 
             Lamps(spot, parts, shell, size);
         }
 
-        // Down the middle of the room, along its longer side; with pillar walls, in each bay between them, running
-        // the same way as the walls (so none crosses a beam). A tube and a bulb at each, for the light switch.
+        // Spread evenly over the whole floor: rows running the same way as any pillar walls (so none crosses a beam), a few metres
+        // apart both ways, at least as many as the spot asks for. A tube and a bulb at each, for the light switch, and a soft
+        // light that reaches the walls, as the game's own lamps have.
+        private const float RowEvery = 5, LampEvery = 4.5f;
+        private const int MostLamps = 24;
+
         private static void Lamps(SpotInfo spot, SceneParts parts, Transform shell, Vector3 size)
         {
-            int lamps = Mathf.Clamp(spot.Room.Lamps, 0, 8);
-            if (lamps == 0) return;
+            if (spot.Room.Lamps <= 0) return;
             var walls = (spot.Room.PillarWalls ?? new List<PillarWallInfo>())
                 .Select(p => (a: shell.InverseTransformPoint(new Vector3(p.From[0], spot.Room.Floor, p.From[1])), b: shell.InverseTransformPoint(new Vector3(p.To[0], spot.Room.Floor, p.To[1]))))
                 .ToList();
             // The axis the lamps run along, and where the bays split across the other one.
             bool alongX = walls.Count > 0 ? Mathf.Abs(walls[0].b.x - walls[0].a.x) >= Mathf.Abs(walls[0].b.z - walls[0].a.z) : size.x > size.z;
             float across = alongX ? size.z : size.x, along = alongX ? size.x : size.z;
-            var cuts = walls.Select(wl => alongX ? wl.a.z : wl.a.x).Where(c => c > .5f && c < across - .5f).OrderBy(c => c).ToList();
-            var spots = new List<Vector3>();
-            if (cuts.Count == 0)
+            var edges = new List<float> { 0 };
+            edges.AddRange(walls.Select(wl => alongX ? wl.a.z : wl.a.x).Where(c => c > .5f && c < across - .5f).OrderBy(c => c));
+            edges.Add(across);
+
+            // Every row, as its place across the room.
+            var rows = new List<float>();
+            for (int bay = 0; bay + 1 < edges.Count; bay++)
             {
-                // No bays: one row down the room's middle.
-                for (int i = 1; i <= lamps; i++)
+                int inBay = Mathf.Max(1, Mathf.FloorToInt((edges[bay + 1] - edges[bay]) / RowEvery));
+                for (int i = 0; i < inBay; i++) rows.Add(Mathf.Lerp(edges[bay], edges[bay + 1], (i + .5f) / inBay));
+            }
+            int each = Mathf.Max(1, Mathf.RoundToInt(along / LampEvery));
+            while (rows.Count * each < spot.Room.Lamps) each++;
+            while (rows.Count * each > MostLamps && each > 1) each--;
+
+            foreach (float row in rows)
+                for (int i = 0; i < each; i++)
                 {
-                    float f = (float)i / (lamps + 1);
-                    spots.Add(alongX ? new Vector3(along * f, 0, across / 2) : new Vector3(across / 2, 0, along * f));
+                    float place = along * (i + .5f) / each;
+                    Vector3 at = shell.TransformPoint(alongX ? new Vector3(place, 0, row) : new Vector3(row, 0, place));
+                    Transform tube = parts.Tube(shell, at, alongX ? 90 : 0, size.y), bulb = parts.Bulb(shell, at, size.y);
+                    if (tube == null && bulb == null) Bulb(shell, at + Vector3.up * (size.y - .35f));
+                    else Lighting.Add(tube, bulb, Lighting.Fill(shell, at + Vector3.up * (size.y - .5f)));
                 }
-            }
-            else
-            {
-                var edges = new List<float> { 0 };
-                edges.AddRange(cuts); edges.Add(across);
-                int bays = edges.Count - 1, each = Mathf.Max(1, Mathf.RoundToInt((float)lamps / bays));
-                for (int bay = 0; bay < bays; bay++)
-                    for (int i = 1; i <= each; i++)
-                    {
-                        float c = Mathf.Lerp(edges[bay], edges[bay + 1], (float)i / (each + 1));
-                        spots.Add(alongX ? new Vector3(along / 2, 0, c) : new Vector3(c, 0, along / 2));
-                    }
-            }
-            foreach (Vector3 local in spots)
-            {
-                Vector3 at = shell.TransformPoint(local);
-                Transform tube = parts.Tube(shell, at, alongX ? 90 : 0, size.y), bulb = parts.Bulb(shell, at, size.y);
-                if (tube == null && bulb == null) Bulb(shell, at + Vector3.up * (size.y - .35f));
-                else Lighting.Add(tube, bulb);
-            }
         }
 
         // Plain concrete blocks the spot asks for (over parts of the hideout's model that poke into the room).
@@ -133,10 +135,46 @@ namespace HideoutExtensions
             }
         }
 
+        // Copies of the hideout's own things, standing in the room. They wait in a switched-off holder while they're placed (and
+        // their scripts come off, unless they're live targets), so no script acts on a copy that isn't ready.
+        private static void Props(SpotInfo spot, Transform shell)
+        {
+            if (spot.Room.Props == null || spot.Room.Props.Count == 0) return;
+            GameObject[] roots = shell.gameObject.scene.GetRootGameObjects();
+            var holder = new GameObject("Extension props");
+            holder.SetActive(false);
+            holder.transform.SetParent(shell, false);
+            foreach (PropInfo prop in spot.Room.Props)
+            {
+                string[] names = (prop.Path ?? "").Split(new[] { '/' }, 2);
+                Transform source = roots.Where(r => r.name == names[0]).Select(r => names.Length > 1 ? r.transform.Find(names[1]) : r.transform).FirstOrDefault(s => s != null);
+                if (source == null) { Plugin.Log.LogWarning($"'{spot.Name}': the hideout has no {prop.Path} to copy."); continue; }
+                bool moved = prop.Move != null && prop.Move.Length == 3;
+                if (!moved && (prop.Position == null || prop.Position.Length != 3)) continue;
+                GameObject copy = Object.Instantiate(source.gameObject, holder.transform);
+                copy.name = "Extension prop " + source.name;
+                if (!prop.Live)
+                    foreach (MonoBehaviour script in copy.GetComponentsInChildren<MonoBehaviour>(true)) Object.DestroyImmediate(script);
+                copy.transform.SetPositionAndRotation(
+                    moved ? source.position + new Vector3(prop.Move[0], prop.Move[1], prop.Move[2]) : new Vector3(prop.Position[0], prop.Position[1], prop.Position[2]),
+                    moved ? source.rotation : Quaternion.Euler(0, prop.Facing, 0) * source.rotation);
+                copy.transform.localScale = source.lossyScale;
+                // More paper targets on a rail that's there already: only the target shows.
+                if (prop.TargetOnly)
+                    foreach (EFT.Hideout.ShootingRange.RailTarget rail in copy.GetComponentsInChildren<EFT.Hideout.ShootingRange.RailTarget>(true))
+                        foreach (MeshRenderer part in copy.GetComponentsInChildren<MeshRenderer>(true))
+                            if (!part.transform.IsChildOf(rail._target)) part.enabled = false;
+                copy.SetActive(true);
+                copy.transform.SetParent(shell, true);
+                if (prop.Live) copy.AddComponent<LiveTargets>().Distance = prop.Distance;
+            }
+            Object.Destroy(holder);
+        }
+
         private sealed class Side
         {
             public readonly string Name; public readonly Vector3 Start, Along, Inward; public readonly float Length;
-            public readonly List<(float t, bool owner)> Openings = new List<(float, bool)>();
+            public readonly List<(float t, bool owner, float width, float height)> Openings = new List<(float, bool, float, float)>();
             public Side(string name, Vector3 start, Vector3 along, float length, Vector3 inward) { Name = name; Start = start; Along = along; Length = length; Inward = inward; }
             // A point on the wall: t along it, y up, `off` out of the room (into the wall between rooms).
             public Vector3 At(float t, float y, float off = 0) => Start + Along * t + Vector3.up * y - Inward * off;
@@ -145,11 +183,11 @@ namespace HideoutExtensions
         private static void Wall(Transform shell, SceneParts.Look look, SceneParts parts, Side wall, float h)
         {
             var holes = wall.Openings.OrderBy(o => o.t)
-                .Select(o => (from: Mathf.Max(0, o.t - OpeningWidth / 2), to: Mathf.Min(wall.Length, o.t + OpeningWidth / 2), o.owner)).ToList();
-            float top = Mathf.Min(OpeningHeight, h - .1f);
+                .Select(o => (from: Mathf.Max(0, o.t - o.width / 2), to: Mathf.Min(wall.Length, o.t + o.width / 2), o.owner, top: Mathf.Min(o.height, h - .1f))).ToList();
             float t = 0;
             foreach (var hole in holes)
             {
+                float top = hole.top;
                 Piece(shell, look, parts, wall, t, hole.from, 0, h);
                 Piece(shell, look, parts, wall, hole.from, hole.to, top, h);   // over the doorway
                 if (hole.owner) Reveal(shell, look, wall, hole.from, hole.to, top);
@@ -248,6 +286,7 @@ namespace HideoutExtensions
             go.transform.SetParent(shell, false);
             var box = go.AddComponent<BoxCollider>();
             box.center = centre; box.size = size;
+            parts.Bullets?.Add(shell, centre, size);
         }
 
         // When the hideout has no ceiling lamp to copy: a warm light like the bunker's.

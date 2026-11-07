@@ -93,6 +93,10 @@ namespace HideoutExtensions
         /// <summary>Entered through a door in one of the hideout's own walls (and back through <see cref="Inside"/>), or null.</summary>
         [JsonProperty("door")] public DoorInfo Door { get; set; }
         [JsonProperty("inside")] public DoorInfo Inside { get; set; }
+        /// <summary>More ways through the hideout's walls into the same room, all cut when it's built.</summary>
+        [JsonProperty("moreDoors")] public List<DoorPairInfo> MoreDoors { get; set; } = new List<DoorPairInfo>();
+        /// <summary>Doorways to other spots' rooms that appear once both rooms are built; neither has to wait for the other.</summary>
+        [JsonProperty("links")] public List<OpeningInfo> Links { get; set; } = new List<OpeningInfo>();
         /// <summary>Entered through a doorway from another spot's room, or null.</summary>
         [JsonProperty("opening")] public OpeningInfo Opening { get; set; }
         /// <summary>Changes to the hideout's own things once this spot is built (moved out of the way, or hidden).</summary>
@@ -114,6 +118,52 @@ namespace HideoutExtensions
         [JsonProperty("position")] public float[] Position { get; set; } = new float[3];
         /// <summary>Degrees about vertical the door's face looks, towards where you stand (0 = +z, 90 = +x).</summary>
         [JsonProperty("facing")] public float Facing { get; set; }
+        /// <summary>The doorway's size in metres (0 = an ordinary door's). Set on a spot's door, and it counts for the whole way through.</summary>
+        [JsonProperty("width")] public float Width { get; set; }
+        [JsonProperty("height")] public float Height { get; set; }
+        /// <summary>Once built it's a bare opening, with no door or frame: for joining a room on as part of the room it opens from.</summary>
+        [JsonProperty("open")] public bool Open { get; set; }
+    }
+
+    /// <summary>One more way through a wall: the same as a spot's door and inside.</summary>
+    public sealed class DoorPairInfo
+    {
+        [JsonProperty("door")] public DoorInfo Door { get; set; }
+        [JsonProperty("inside")] public DoorInfo Inside { get; set; }
+    }
+
+    /// <summary>A copy of one of the hideout's own objects standing in a room.</summary>
+    public sealed class PropInfo
+    {
+        /// <summary>Its path in the hideout's scene.</summary>
+        [JsonProperty("path")] public string Path { get; set; }
+        /// <summary>Where it stands (hideout world coordinates), unless <see cref="Move"/> is set.</summary>
+        [JsonProperty("position")] public float[] Position { get; set; }
+        [JsonProperty("facing")] public float Facing { get; set; }
+        /// <summary>Where it stands relative to the original (metres, x y z), turned the same way.</summary>
+        [JsonProperty("move")] public float[] Move { get; set; }
+        /// <summary>A shooting range target that keeps working: hit, it drops and comes back up. Otherwise its scripts are left off.</summary>
+        [JsonProperty("live")] public bool Live { get; set; }
+        /// <summary>A live target: the distance on the range's control that brings it up.</summary>
+        [JsonProperty("distance")] public int Distance { get; set; }
+        /// <summary>A rail target: only its paper target shows, for more than one on a rail.</summary>
+        [JsonProperty("targetOnly")] public bool TargetOnly { get; set; }
+    }
+
+    /// <summary>Distance marks painted across a shooting range: a line over the floor, and the distance on the floor and both walls.</summary>
+    public sealed class RangeMarksInfo
+    {
+        /// <summary>Where distances are measured from, along z.</summary>
+        [JsonProperty("zero")] public float Zero { get; set; }
+        /// <summary>The first mark's distance, the distance between marks, and how many.</summary>
+        [JsonProperty("first")] public float First { get; set; }
+        [JsonProperty("step")] public float Step { get; set; }
+        [JsonProperty("count")] public int Count { get; set; }
+        /// <summary>The range's walls, in x.</summary>
+        [JsonProperty("west")] public float West { get; set; }
+        [JsonProperty("east")] public float East { get; set; }
+        /// <summary>Where the control that picks a distance stands, or null for none.</summary>
+        [JsonProperty("panel")] public float[] Panel { get; set; }
     }
 
     public sealed class OpeningInfo
@@ -140,6 +190,10 @@ namespace HideoutExtensions
         [JsonProperty("pillarWalls")] public List<PillarWallInfo> PillarWalls { get; set; } = new List<PillarWallInfo>();
         /// <summary>Plain blocks in the room's walls' material, to cover things that poke into it.</summary>
         [JsonProperty("blocks")] public List<BlockInfo> Blocks { get; set; } = new List<BlockInfo>();
+        /// <summary>Copies of the hideout's own objects standing in the room.</summary>
+        [JsonProperty("props")] public List<PropInfo> Props { get; set; } = new List<PropInfo>();
+        /// <summary>Distance marks down a shooting range, or null.</summary>
+        [JsonProperty("rangeMarks")] public RangeMarksInfo RangeMarks { get; set; }
     }
 
     /// <summary>One of the hideout's own objects, by its path in the scene: moved by <see cref="Move"/> (metres, x y z) or hidden.</summary>

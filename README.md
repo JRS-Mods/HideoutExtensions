@@ -4,8 +4,6 @@ By JRS.
 
 Hideout Extensions lets you build new rooms onto your hideout, move the hideout's areas wherever you like, and makes the hideout run a bit lighter. Other mods can use it too: they can add their own rooms, furnish the rooms, and let players move their own things around the hideout.
 
-What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
-
 ![The annex from the overview: the corridor behind the gym, the south room, and the north room's build icon](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/annex-overview.jpg)
 
 ## Contents
@@ -38,7 +36,7 @@ The mod comes in two parts, and you need both:
 
 ## Building rooms: the annex
 
-The mod comes with **the annex**: three rooms behind the gym that you build one after another. To start, the emergency wall must be at level 6.
+The mod comes with **the annex**: four rooms behind the gym that you build one after another. To start, the emergency wall must be at level 6.
 
 ```
               north ↑
@@ -55,14 +53,24 @@ The mod comes with **the annex**: three rooms behind the gym that you build one 
 1. **The annex corridor.** There's already a sealed concrete corridor behind the gym's back wall in the game's model. Building it puts a door in the gym's back wall, between the Place of Fame shelf and the gym gear, and lights the corridor. It also moves the punching bag half a metre to the right and removes the blue mat under it, so they're out of the door's way.
 2. **The south room.** Through a door in the corridor's back wall.
 3. **The north room.** Through a door in the south room's back wall.
+4. **The far room.** Through a door in the north room's back wall.
 
-| Room | Cost | Build time |
-| --- | --- | --- |
-| Annex corridor | 150,000 roubles, 3 packs of nails, 4 bolts, 1 electric drill | 4 h |
-| South room | 120,000 roubles, 2 packs of nails, 3 bolts, 1 pack of screws | 3 h |
-| North room | 200,000 roubles, 3 packs of nails, 4 bolts, 1 toolset | 5 h |
+### Beyond the annex
 
-Build times follow SPT's `overrideBuildTimeSeconds` in `hideout.json`, just like the game's own areas.
+Four more parts of the hideout are built the same way, each on its own:
+
+| Room | Where you get in | Needs | Cost | Build time |
+| --- | --- | --- | --- | --- |
+| East hall (12.5 x 12.5 m) | Knocks out the east walls of the gym and the mannequin room, leaving two wide openings. A locker, a poster and the rubble along those walls go | Emergency wall level 6 | 250,000 roubles, 4 packs of nails, 5 bolts, 1 toolset | 6 h |
+| South wing (18 x 16 m) | A door in the long room's end wall, between the air filter and the heating. The barrels on the pallet in front of it go | Emergency wall level 6 | 400,000 roubles, 5 packs of nails, 6 bolts, 1 electric drill, 1 toolset | 8 h |
+| West hall (10.5 x 37 m) | A door in the main hall's wall beside the stash, where the tall safe stood (the safe goes). One long room behind the main hall and down the side of the range | Emergency wall level 6 | 600,000 roubles, 8 packs of nails, 9 bolts, 1 electric drill, 1 toolset, 1 pack of screws | 10 h |
+| Range extension (9 x 40 m) | Breaks out the range's end wall, leaving a wide opening | None: it's there from the start | Free | No build |
+
+The range extension takes the range from about 49 m to about 89 m, with a line and white distance marks every 10 m, and at each mark a row of six poppers and three white paper targets.
+
+**Picking a distance.** Walk up to the **TARGET DISTANCE** sign on the firing-line bench and look at it. Your interact prompt lists every distance, **All targets** and **Range's own targets**. Pick a distance and only that row stands, with everything else on the range down, the game's own targets too. The sign shows what's picked. Targets take bullet holes, drop when hit and come back up after a few seconds.
+
+The new targets aren't part of the range's training or scores, and the paper targets don't run along their rails: the game's own controls still work only its own targets.
 
 ### How to build a room
 
@@ -107,6 +115,10 @@ Good to know:
 - **The walls don't move.** Whatever the game built into the bunker's walls for an area stays put, so the gap it leaves can look bare. Things an area hangs on its walls (shelves, the punching bag, paint) go with it, so it looks best against walls like the ones it came from.
 - **The emergency wall can't be moved**, because the room it's in carries the annex. You can lock other areas in the settings.
 
+### Moving single things and decorating
+
+Moving single things (a box, a shelf, a lamp), giving them to other areas, hiding them and putting in copies of anything the hideout has is a mod of its own, **Hideout Interiors**. It works with or without Hideout Extensions, and moved areas take the things given to them along.
+
 ## Hideout performance
 
 With every area built, the hideout has around 130 lights that cast shadows, and each of those redraws part of the scene every frame. The game normally fades a light's shadows out between 12 and 17 m from you and switches them off further away, but some lights were left without that fade. Most of them are Halloween lights (on during SPT's Halloween event, 28 October to 9 November), plus a few in nearly every area.
@@ -129,6 +141,7 @@ Press **F12** in game and open **JRS-HideoutExtensions**, or edit `BepInEx/confi
 | Moving areas | Areas that stay put | `EmergencyWall` | Areas that can't be moved, comma-separated (the game's area names, such as `Gym` or `ShootingRange`). |
 | Moving areas | Enabled | On | Lets you move areas from the overview. |
 | Moving areas | Lights stay in the room | Off | Leaves an area's lights behind when you move it. |
+| Overview camera | Extra zoom out (m) | 80 | Once the overview is zoomed all the way out, scrolling out further backs the camera away by up to this many metres, so you can see the whole hideout at once (0 = the game's zoom only). |
 
 ## Uninstalling
 
@@ -198,6 +211,10 @@ A new room hanging off one of the annex rooms is the easiest place to start: use
 
 **Coordinates** are in metres in the hideout's world: +x is east, +z is north, y is up, and the floor is at 0. `room.min` and `room.max` are the inside corners of the floor (x, z). Rooms next to each other stand 0.2 m apart; that gap is the wall between them. A room mustn't overlap another room or the hideout's own model. The annex's rooms are good reference points: the corridor is x 1.6 to 13.42, z 13.2 to 16.34; the south room z 16.95 to 23.25; the north room z 23.45 to 29.75.
 
+A door can also take `width` and `height` in metres, and `"open": true` makes it a bare opening with no door once built (`spots/range_extension.json` does this). `moreDoors` adds more ways through the walls into the same room (`spots/annex_3_gallery.json`), and `links` adds a doorway to another room that appears once both are built (`spots/west_annex.json`).
+
+A room's `props` copies the hideout's own objects into it, each with a `path`, and either a `position` and `facing` or a `move` from the original. Their scripts are left off unless `"live": true`, which keeps a shooting range target working. `rangeMarks` paints distance marks down a range (`spots/range_extension.json`).
+
 **Facing** is in degrees around the vertical: 0 looks towards +z (north), 90 towards +x (east), 180 south, 270 west.
 
 | Field | What it is |
@@ -218,6 +235,7 @@ A new room hanging off one of the annex rooms is the easiest place to start: use
 | `hideoutEdits` | Optional. Changes to the hideout's own objects once the room is built, to get them out of the way: `{ "path": "23_gym/level1/highlight_transform/Punching_bag_02", "move": [0.5, 0, 0] }` moves one (metres), `{ "path": "...", "hide": true }` hides one. |
 | `requirements` | Items and counts it costs. Roubles are `5449016a4bdc2d6f028b456f`. Money is taken from a stack; other items are taken whole. |
 | `buildSeconds` | How long it takes to build. |
+| `built` | Optional. `true`: the room is there from the start, with no build and no lock (its `requirements` and `buildSeconds` are never used). |
 | `unlock` | Optional. A hideout area and the level it must be at, with the reason shown while it's locked: `{ "area": "EmergencyWall", "level": 6, "why": "..." }`. `area` uses the server's `HideoutAreas` names. |
 
 A server mod can also add spots in code: inject `HideoutExtensions.Server.SpotCatalog` and call `Add(spot)` while loading. `Add` returns why a spot was refused, or `null` if it was added.

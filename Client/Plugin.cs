@@ -15,7 +15,7 @@ namespace HideoutExtensions
     public sealed class Plugin : BaseUnityPlugin
     {
         public const string Id = "jrs.hideoutextensions";
-        public const string Version = "1.1.0";
+        public const string Version = "1.2.0";
         internal static ManualLogSource Log;
         internal static ConfigEntry<bool> Enabled;
         internal static string Folder;
@@ -30,9 +30,14 @@ namespace HideoutExtensions
                 "Put room extensions in the hideout. Off: the hideout is left exactly as the game has it (built rooms stay built and come back when it's on).");
             Performance.Bind(Config);
             AreaMover.Bind(Config);
+            OverviewZoom.Bind(Config);
             harmony = new Harmony(Id);
             try { Interaction.Patch(harmony); ready = true; }
             catch (Exception e) { Logger.LogError("The interaction prompt couldn't be set up, so room extensions are off this session: " + e); }
+            try { Extensions.PatchStyle(harmony); }
+            catch (Exception e) { Logger.LogWarning("The hideout's customization can't be followed as it happens, so it's looked at every second instead: " + e.Message); }
+            try { OverviewZoom.Patch(harmony); }
+            catch (Exception e) { Logger.LogError("The overview's zoom couldn't be extended: " + e); }
             try { Lighting.Patch(harmony); }
             catch (Exception e) { Logger.LogError("The light switch couldn't be followed, so the rooms' lamps stay as they are: " + e); }
             Logger.LogInfo($"Hideout Extensions {Version} loaded.");
@@ -43,6 +48,7 @@ namespace HideoutExtensions
             if (ready) Extensions.Tick(Enabled.Value);
             Performance.Tick();
             AreaMover.Tick();
+            OverviewZoom.Tick();
         }
 
         private void OnDestroy() => harmony?.UnpatchSelf();

@@ -12,7 +12,7 @@ namespace HideoutExtensions
     /// </summary>
     internal sealed class Passage
     {
-        private const float Reach = .55f, HalfWidth = .55f, Out = .85f;
+        private const float Reach = .55f, HalfWidth = .55f, Out = .85f, CeilingHeight = 3.11f;
         private static float quietUntil;
         private readonly Site site;
         private readonly Vector3 at, exit;
@@ -72,14 +72,15 @@ namespace HideoutExtensions
         /// </summary>
         public static void Line(Transform parent, SceneParts parts, DoorInfo a, DoorInfo b)
         {
-            SceneParts.Look look = parts.For("basement");
+            // The walls either side of a wide opening are the hideout's own, and it's lined to match them.
+            SceneParts.Look look = parts.For(a.Open ? "hideout" : "basement");
             // In side a's frame: x along its wall, y up, z out of the wall towards you; side b is at z = -depth.
             var holder = new GameObject("Extension doorway through the wall").transform;
             holder.SetParent(parent, false);
             holder.SetPositionAndRotation(Extensions.Point(a.Position), Quaternion.Euler(0, a.Facing, 0));
             float depth = -holder.InverseTransformPoint(Extensions.Point(b.Position)).z;
             if (depth < .02f) return;
-            const float w = Room.OpeningWidth / 2, h = Room.OpeningHeight;
+            float w = (a.Width > 0 ? a.Width : Room.OpeningWidth) / 2, h = Mathf.Min(a.Height > 0 ? a.Height : Room.OpeningHeight, CeilingHeight);
             Vector3 P(float x, float y, float z) => new Vector3(x, y, -z);
             System.Func<Vector3, Vector2> side = p => new Vector2(-p.z, p.y) * look.WallUv;
             System.Func<Vector3, Vector2> flat = p => new Vector2(p.x, -p.z);

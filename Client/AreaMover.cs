@@ -27,7 +27,7 @@ namespace HideoutExtensions
     /// turns on) go with it: most are its own (spotlights on its displays, candles on its shelves); the config can leave them behind.
     /// The spot an area leaves gets the annex rooms' lamps (following the light switch), which go again when it's put back.
     /// </summary>
-    internal static class AreaMover
+    internal static partial class AreaMover
     {
         internal static ConfigEntry<bool> Enabled;
         internal static ConfigEntry<string> Fixed;
@@ -41,6 +41,9 @@ namespace HideoutExtensions
         {
             public Vector3 Position; public Quaternion Rotation; public Vector3 Pivot;
             public readonly List<(Transform group, Vector3 position, Quaternion rotation)> Lights = new List<(Transform, Vector3, Quaternion)>();
+            // Its culled parts, found once (a level the game switches on later is found again then).
+            public CullingObject[] Culled;
+            public int CulledParts = -1;
         }
 
         private static readonly Dictionary<string, Placement> layout = new Dictionary<string, Placement>();
@@ -223,15 +226,29 @@ namespace HideoutExtensions
                 }
             // The game's culling keeps where its lights and objects are.
             if (CullingManager.Instance != null)
-                foreach (CullingObject culled in area.GetComponentsInChildren<CullingObject>(true))
-                    try { CullingManager.Instance.UpdateSphere(culled); } catch (Exception) { }
+            {
+                int parts = area.transform.childCount;
+                if (home.Culled == null || moving != area || home.CulledParts != parts)
+                {
+                    home.Culled = area.GetComponentsInChildren<CullingObject>(true);
+                    home.CulledParts = parts;
+                }
+                foreach (CullingObject culled in home.Culled)
+                    if (culled != null) try { CullingManager.Instance.UpdateSphere(culled); } catch (Exception) { }
+            }
             Physics.SyncTransforms();
         }
 
+        // The hideout's overview is on screen: not walking about, and not a menu in front (the hideout stays loaded
+        // behind every menu, its player in overview mode).
+        private static HideoutScreenRear rear;
+        private static float nextRear;
         private static bool Overview()
         {
             if (owner == null && Time.unscaledTime >= nextOwner) { nextOwner = Time.unscaledTime + 1; owner = UnityEngine.Object.FindObjectOfType<HideoutPlayerOwner>(); }
-            return owner != null && !owner.FirstPersonMode;
+            if (owner == null || owner.FirstPersonMode) return false;
+            if (rear == null && Time.unscaledTime >= nextRear) { nextRear = Time.unscaledTime + 1; rear = UnityEngine.Object.FindObjectOfType<HideoutScreenRear>(true); }
+            return rear != null && rear.isActiveAndEnabled;
         }
 
         // The area whose icon is under the mouse.
@@ -261,6 +278,7 @@ namespace HideoutExtensions
                 return;
             }
             AreaIcon icon = hits.Select(h => h.gameObject != null ? h.gameObject.GetComponentInParent<AreaIcon>() : null).FirstOrDefault(i => i != null && i.Data != null);
+            // Not an icon: single things are moved in decor mode.
             if (icon == null) return;
             HideoutArea area = style.scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<HideoutArea>(true))
                 .FirstOrDefault(a => a.Data != null && a.Data.Template.Type == icon.Data.Template.Type);
@@ -312,7 +330,7 @@ namespace HideoutExtensions
             try { camera = EFT.CameraControl.CameraManager.Instance.Camera; } catch (Exception) { }
             if (camera == null) camera = Camera.main;
             if (camera == null) return;
-            Ray ray = camera.ScreenPointToRay(Input.mousePosition);
+            Ray ray = MouseRay(camera);
             var floor = new Plane(Vector3.up, new Vector3(0, home.Pivot.y, 0));
             if (!floor.Raycast(ray, out float distance)) return;
             Vector3 at = ray.GetPoint(distance);
@@ -334,6 +352,14 @@ namespace HideoutExtensions
             }
         }
 
+        // The game can draw the 3D view at a lower resolution than the window (camera pixelRect 1120x584 in a 1904x993 window),
+        // so ScreenPointToRay with window pixels points far off. Go through the viewport like OverviewIcons does.
+        private static Ray MouseRay(Camera camera)
+        {
+            Vector3 mouse = Input.mousePosition;
+            return camera.ViewportPointToRay(new Vector3(mouse.x / Screen.width, mouse.y / Screen.height, 0));
+        }
+
         // Another mod's thing: follows the mouse on its own floor; its mod is told where it's put down.
         private static void MoveThing()
         {
@@ -351,7 +377,7 @@ namespace HideoutExtensions
             try { camera = EFT.CameraControl.CameraManager.Instance.Camera; } catch (Exception) { }
             if (camera == null) camera = Camera.main;
             if (camera == null) return;
-            Ray ray = camera.ScreenPointToRay(Input.mousePosition);
+            Ray ray = MouseRay(camera);
             if (!new Plane(Vector3.up, thingFrom).Raycast(ray, out float distance)) return;
             Vector3 at = ray.GetPoint(distance);
             Quaternion turn = Quaternion.Euler(0, yaw, 0);
@@ -483,21 +509,31 @@ namespace HideoutExtensions
             var canvas = blocker.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 30;
-            blocker.AddComponent<CanvasScaler>();
+            var scaler = blocker.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.matchWidthOrHeight = .5f;
             blocker.AddComponent<GraphicRaycaster>();
             var screen = new GameObject("Screen", typeof(RectTransform)).GetComponent<RectTransform>();
             screen.SetParent(blocker.transform, false);
             screen.anchorMin = Vector2.zero; screen.anchorMax = Vector2.one; screen.offsetMin = screen.offsetMax = Vector2.zero;
             screen.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, .001f);
+            // A dark band behind the keys, so they read over the hideout and its icons.
+            var band = new GameObject("Hint backing", typeof(RectTransform)).GetComponent<RectTransform>();
+            band.SetParent(blocker.transform, false);
+            band.anchorMin = new Vector2(.5f, 1); band.anchorMax = new Vector2(.5f, 1); band.pivot = new Vector2(.5f, 1);
+            band.anchoredPosition = new Vector2(0, -82); band.sizeDelta = new Vector2(1380, 96);
+            var shade = band.gameObject.AddComponent<Image>();
+            shade.color = new Color(0, 0, 0, .72f); shade.raycastTarget = false;
             var text = new GameObject("Hint", typeof(RectTransform)).GetComponent<RectTransform>();
             text.SetParent(blocker.transform, false);
             text.anchorMin = new Vector2(.5f, 1); text.anchorMax = new Vector2(.5f, 1); text.pivot = new Vector2(.5f, 1);
-            text.anchoredPosition = new Vector2(0, -90); text.sizeDelta = new Vector2(900, 60);
+            text.anchoredPosition = new Vector2(0, -88); text.sizeDelta = new Vector2(1340, 86);
             hint = text.gameObject.AddComponent<TextMeshProUGUI>();
             if (icon != null && icon._currentAreaLevel != null) hint.font = icon._currentAreaLevel.font;
-            hint.fontSize = 20; hint.alignment = TextAlignmentOptions.Center; hint.raycastTarget = false;
+            hint.fontSize = 19; hint.enableWordWrapping = true; hint.alignment = TextAlignmentOptions.Center; hint.raycastTarget = false;
             hint.color = new Color(.85f, .83f, .78f);
-            hint.text = $"<b>MOVING {name.ToUpperInvariant()}</b>\nClick to put it down · R to turn (Shift+R: a little) · Right-click to cancel · Backspace: back where the game has it";
+            hint.text = $"<b>MOVING {name.ToUpperInvariant()}</b>\nClick: put down · R: turn (Shift+R: 15°) · Right-click: cancel · Backspace: the game's spot";
         }
 
         private static void Stop()

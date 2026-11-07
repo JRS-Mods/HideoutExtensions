@@ -1,0 +1,134 @@
+{
+  "id": "6a70e5c0a1b2c3d4e5f60006",
+  "name": "East hall",
+  "description": "A big square hall through the east walls of the gym and the mannequin room, with the walls knocked out.",
+  "room": {
+    "min": [
+      14.6,
+      0.3
+    ],
+    "max": [
+      27.1,
+      12.8
+    ],
+    "height": 3.1,
+    "lamps": 6,
+    "style": "hideout"
+  },
+  "door": {
+    "position": [
+      13.38,
+      0.0,
+      4.35
+    ],
+    "facing": 270,
+    "width": 4.1,
+    "height": 3.25,
+    "open": true
+  },
+  "inside": {
+    "position": [
+      14.6,
+      0.0,
+      4.35
+    ],
+    "facing": 90
+  },
+  "moreDoors": [
+    {
+      "door": {
+        "position": [
+          13.38,
+          0.0,
+          9.825
+        ],
+        "facing": 270,
+        "width": 5.75,
+        "height": 3.25,
+        "open": true
+      },
+      "inside": {
+        "position": [
+          14.6,
+          0.0,
+          9.825
+        ],
+        "facing": 90
+      }
+    }
+  ],
+  "hideoutEdits": [
+    {
+      "path": "23_gym/level1/highlight_transform/cupboard_metal_rezerve (8)",
+      "hide": true
+    },
+    {
+      "path": "23_gym/level1/highlight_transform/Reserve_sport_poster_warning_var2",
+      "hide": true
+    },
+    {
+      "path": "23_gym/level0/highlight_transform/Bricks_Rubble (17)",
+      "hide": true
+    },
+    {
+      "path": "23_gym/level0/highlight_transform/Bricks_Rubble (18)",
+      "hide": true
+    },
+    {
+      "path": "22_emergency_wall/level6/immediate_enable/opora_angle (1)",
+      "hide": true
+    },
+    {
+      "path": "22_emergency_wall/level6/immediate_enable/opora_angle (3)",
+      "hide": true
+    },
+    {
+      "path": "22_emergency_wall/level6/immediate_enable/module_04/Bricks_Rubble (12)",
+      "hide": true
+    },
+    {
+      "path": "22_emergency_wall/level6/immediate_enable/module_04/Bricks_Rubble (13)",
+      "hide": true
+    },
+    {
+      "path": "22_emergency_wall/level6/immediate_enable/module_04/Bricks_Rubble (15)",
+      "hide": true
+    },
+    {
+      "path": "22_emergency_wall/level6/immediate_enable/module_04/Bricks_Rubble (16)",
+      "hide": true
+    },
+    {
+      "path": "22_emergency_wall/level6/immediate_enable/module_04/sand_decal6 (22)",
+      "hide": true
+    },
+    {
+      "path": "22_emergency_wall/level6/immediate_enable/module_04/garbage_stone1 (9)",
+      "hide": true
+    }
+  ],
+  "requirements": [
+    {
+      "template": "5449016a4bdc2d6f028b456f",
+      "count": 250000
+    },
+    {
+      "template": "590c31c586f774245e3141b2",
+      "count": 4
+    },
+    {
+      "template": "57347c5b245977448d35f6e1",
+      "count": 5
+    },
+    {
+      "template": "590c2e1186f77425357b6124",
+      "count": 1
+    }
+  ],
+  "buildSeconds": 21600,
+  "unlock": {
+    "area": "EmergencyWall",
+    "level": 6,
+    "why": "Tidy up the room behind the emergency wall first (Emergency Wall level 6)"
+  }
+}
