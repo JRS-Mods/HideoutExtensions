@@ -6,6 +6,8 @@ Hideout Extensions lets you build new rooms onto your hideout, move the hideout'
 
 ![The annex from the overview: the corridor behind the gym, the south room, and the north room's build icon](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/annex-overview.jpg)
 
+![Every room built, seen from the overview zoomed all the way out: the range extension on the left, the annex, the halls and the south wing](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/full-hideout.jpg)
+
 ## Contents
 
 - [Installing](#installing)

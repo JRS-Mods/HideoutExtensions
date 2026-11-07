@@ -26,7 +26,11 @@ namespace HideoutExtensions
         /// </summary>
         public static void Build(Transform root, IList<SpotInfo> rooms, IList<(Vector3 at, float facing, float depth)> doorways)
         {
+            // The same rooms and doorways as last time: the navmesh there is still right.
+            string key = string.Join(",", rooms.Select(r => r.Id)) + "|" + string.Join(";", doorways.Select(d => $"{d.at}/{d.facing}/{d.depth}"));
+            if (key == builtKey && data.valid) return;
             Clear();
+            builtKey = key;
             if (rooms.Count == 0) return;
             try
             {
@@ -56,10 +60,29 @@ namespace HideoutExtensions
                 NavMeshBuildSettings settings = NavMesh.GetSettingsByID(0);
                 if (settings.agentTypeID == -1 && NavMesh.GetSettingsCount() > 0) settings = NavMesh.GetSettingsByIndex(0);
                 settings.agentRadius = Mathf.Min(settings.agentRadius, Radius);
-                NavMeshData built = NavMeshBuilder.BuildNavMeshData(settings, sources, bounds, Vector3.zero, Quaternion.identity);
-                if (built == null) { Plugin.Log.LogWarning("The rooms' navmesh couldn't be built."); return; }
+                // Built over a few frames rather than all in one (that was a hitch each time a room was built); the
+                // doorways are joined once it's done.
+                var built = new NavMeshData(settings.agentTypeID);
                 data = NavMesh.AddNavMeshData(built);
+                int count = sources.Count, build = ++builds;
+                AsyncOperation work = NavMeshBuilder.UpdateNavMeshDataAsync(built, settings, sources, bounds);
+                var ways = doorways.ToList();
+                work.completed += _ =>
+                {
+                    if (build != builds || !data.valid) return;   // cleared or built again since
+                    try { Join(settings, ways, count); }
+                    catch (Exception e) { Plugin.Log.LogWarning("The rooms' doorways couldn't be joined to the navmesh: " + e.Message); }
+                };
+            }
+            catch (Exception e) { Plugin.Log.LogWarning("The rooms' navmesh couldn't be built: " + e.Message); Clear(); }
+        }
 
+        private static string builtKey;
+        private static int builds;
+
+        private static void Join(NavMeshBuildSettings settings, IList<(Vector3 at, float facing, float depth)> doorways, int sources)
+        {
+            {
                 int joined = 0;
                 foreach (var (at, facing, depth) in doorways)
                 {
@@ -73,9 +96,8 @@ namespace HideoutExtensions
                     });
                     if (link.valid) { links.Add(link); joined++; }
                 }
-                Plugin.Log.LogInfo($"Rooms' navmesh: {sources.Count} collider(s), {joined} of {doorways.Count} doorway(s) joined.");
+                Plugin.Log.LogInfo($"Rooms' navmesh: {sources} collider(s), {joined} of {doorways.Count} doorway(s) joined.");
             }
-            catch (Exception e) { Plugin.Log.LogWarning("The rooms' navmesh couldn't be built: " + e.Message); Clear(); }
         }
 
         // The working doors (and their frames) are left out: they open and shut.
@@ -91,6 +113,7 @@ namespace HideoutExtensions
             links.Clear();
             if (data.valid) data.Remove();
             data = default;
+            builtKey = null;
         }
     }
 }

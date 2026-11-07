@@ -32,6 +32,7 @@ Needs SPT 4.1.x (made on 4.1.6). Install over 1.1.0 and restart the SPT server; 
 - **Room icons on the overview** sit where they belong at any render scale.
 - **Doors through the hideout's walls stay open after a restart.** The game puts its customized walls in after the rooms are laid out, so a doorway could stand solid until something was built; it's cut again when the walls change.
 - **The west hall's door opens from any angle.** The stash's OPEN STASH prompt zone stood over it; areas' prompt zones are now cut round every door.
+- **Less freezing while rooms are built.** Starting or finishing a build rebuilt every room's walls and lamps and the rooms' navmesh in one go; now only the rooms whose doorways changed are rebuilt, and the navmesh is built in the background and only when the rooms change.
 - **No small hitch every couple of seconds** from checking the hideout's walls and customization: it's checked when the game actually changes them.
 - The overview's camera reaches the far rooms, and the areas they open off stay drawn from inside them.
 

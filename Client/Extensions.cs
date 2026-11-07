@@ -108,7 +108,7 @@ namespace HideoutExtensions
             }
             if (restyled || wallsNew)
             {
-                if (restyled) Plugin.Log.LogInfo("The hideout's customization changed; the rooms follow it.");
+                if (restyled) { Plugin.Log.LogInfo("The hideout's customization changed; the rooms follow it."); styleVersion++; }
                 if (wallsNew) { Plugin.Log.LogInfo("New walls stand where the doorways were cut; cutting them again."); WallCut.Invalidate(); }
                 Layout();
             }
@@ -141,6 +141,9 @@ namespace HideoutExtensions
         // The spots are in from the server and laid out for this visit.
         internal static bool Ready => root != null;
         internal const string RootName = "Hideout extensions";
+        // Each room's walls as last built (what they were built round), and the hideout's look's count of changes.
+        private static readonly Dictionary<string, string> shellKeys = new Dictionary<string, string>();
+        private static int styleVersion;
 
         // No rooms this visit, and none coming: room extensions are switched off, or were given up on for this hideout
         // (no server mod, or the hideout lacks what rooms are made of).
@@ -227,10 +230,6 @@ namespace HideoutExtensions
                     frame.position = Room.Corner(site.Spot);
                     site.Room = new ExtensionRoom { Spot = site.Spot, Root = frame, Size = Room.Size(site.Spot) };
                 }
-                Transform old = site.Room.Root.Find("Shell");
-                if (old != null) UnityEngine.Object.Destroy(old.gameObject);
-                var shell = new GameObject("Shell").transform;
-                shell.SetParent(site.Room.Root, false);
                 var doorways = new List<Doorway>();
                 if (site.Spot.Opening != null) doorways.Add(new Doorway { Centre = Point(site.Spot.Opening.Position), Owner = true });
                 foreach (Site child in built.Where(c => c.Spot.Opening?.From == site.Spot.Id))
@@ -247,7 +246,18 @@ namespace HideoutExtensions
                         foreach (var way in Ways(door.Spot))
                             foreach (DoorInfo side in new[] { way.door, way.inside })
                                 if (InWall(site.Spot, Point(side.Position))) doorways.Add(new Doorway { Centre = Point(side.Position), Owner = false, Width = way.door.Width, Height = way.door.Height });
-                Room.Build(site.Spot, parts, shell, doorways);
+                // Walls, lamps and pillars are only built again when what they're built round changed (a doorway into
+                // this room, the hideout's look): another room being built leaves this one as it is.
+                string shellKey = styleVersion + "|" + cut + "|" + string.Join(";", doorways.Select(d => $"{d.Centre}/{d.Owner}/{d.Width}/{d.Height}"));
+                Transform old = site.Room.Root.Find("Shell");
+                if (old == null || !shellKeys.TryGetValue(site.Spot.Id, out string had) || had != shellKey)
+                {
+                    if (old != null) UnityEngine.Object.Destroy(old.gameObject);
+                    var shell = new GameObject("Shell").transform;
+                    shell.SetParent(site.Room.Root, false);
+                    Room.Build(site.Spot, parts, shell, doorways);
+                    shellKeys[site.Spot.Id] = shellKey;
+                }
                 if (fresh)
                 {
                     RoomList.Add(site.Room);
@@ -436,6 +446,7 @@ namespace HideoutExtensions
             styleChanged = 3;
             WallCut.Forget();
             DoorwayClear.Forget();
+            shellKeys.Clear();
             Navigation.Clear();
             SwingDoor.Forget();
             HideoutEdits.Forget();
