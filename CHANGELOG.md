@@ -4,6 +4,8 @@
 
 Needs SPT 4.1.x (made on 4.1.6). Install over 1.1.0 and restart the SPT server; your rooms and the places you moved areas to carry over. Works alongside Fika 2.4 (the hideout is your own; nothing about it is shared in co-op).
 
+![Every room built, seen from the overview zoomed all the way out: the range extension on the left, the annex, the halls and the south wing](https://raw.githubusercontent.com/JRS-Mods/HideoutExtensions/main/images/full-hideout.jpg)
+
 ### Added
 
 - **Five new parts of the hideout to build**, each on its own:
