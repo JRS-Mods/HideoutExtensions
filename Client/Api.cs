@@ -44,6 +44,29 @@ namespace HideoutExtensions
         /// </summary>
         public static void AddUnmovable(GameObject icon, string reason) => AreaMover.AddUnmovable(icon, reason);
 
+        /// <summary>
+        /// For a mod that loads the hideout's scene as a raid map (Hideout Siege): the rooms the playing profile has built
+        /// and where it has put its areas, as text to keep or send to the other players in the raid. Call it in the raid,
+        /// as the map loads.
+        /// </summary>
+        public static string RaidCopySnapshot() => RaidCopy.Take();
+
+        /// <summary>
+        /// Builds a <see cref="RaidCopySnapshot"/> (this player's, or the host's in co-op) into the hideout scene that's loaded
+        /// as the raid's map: the built rooms, their doorways cut and doors in, their lamps lit, <see cref="RoomReady"/> raised
+        /// for each, and the areas where they were put. Nothing that's only for the hideout (build prompts, the overview,
+        /// the rooms' own navmesh). It all goes with the raid.
+        /// </summary>
+        public static void BuildRaidCopy(string snapshot) => RaidCopy.Build(snapshot);
+
+        /// <summary>
+        /// In a raid copy only (after <see cref="BuildRaidCopy"/>): a room of your own, built for this raid alone, given as a
+        /// spot's JSON like the server's files (an <c>opening</c> from a built room joins it on, and <c>"open": true</c> leaves
+        /// that doorway without a door). It's laid out with the rest straight away, and goes with the raid. Null if it's in,
+        /// otherwise why not.
+        /// </summary>
+        public static string AddRaidRoom(string spotJson) => RaidCopy.AddRoom(spotJson);
+
         internal static void Raise(ExtensionRoom room)
         {
             if (RoomReady == null) return;
@@ -173,6 +196,11 @@ namespace HideoutExtensions
         [JsonProperty("position")] public float[] Position { get; set; } = new float[3];
         /// <summary>Degrees about vertical, pointing into the room it's reached from.</summary>
         [JsonProperty("facing")] public float Facing { get; set; }
+        /// <summary>Optional: the doorway's size in metres (0 = an ordinary door's).</summary>
+        [JsonProperty("width")] public float Width { get; set; }
+        [JsonProperty("height")] public float Height { get; set; }
+        /// <summary>Optional: a bare opening, with no door in it.</summary>
+        [JsonProperty("open")] public bool Open { get; set; }
     }
 
     /// <summary>The room's inside in hideout world coordinates: floor from min to max (x, z).</summary>

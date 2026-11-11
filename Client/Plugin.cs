@@ -15,7 +15,7 @@ namespace HideoutExtensions
     public sealed class Plugin : BaseUnityPlugin
     {
         public const string Id = "jrs.hideoutextensions";
-        public const string Version = "1.2.0";
+        public const string Version = "1.3.0";
         internal static ManualLogSource Log;
         internal static ConfigEntry<bool> Enabled;
         internal static string Folder;

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Comfort.Common;
@@ -43,6 +43,10 @@ namespace HideoutExtensions
         // The hideout whose rooms something else removed (they wait for you to open it).
         private static GameObject removedFrom;
         private static int failedScene = -1;
+        // Set while the rooms are in another mod's raid copy of the hideout (Hideout Siege): the spots built there, whatever
+        // the playing profile's own hideout says (in co-op it's the host's hideout).
+        internal static HashSet<string> RaidBuilt;
+        internal static bool InRaidCopy => RaidBuilt != null;
 
         private sealed class Reply { [JsonProperty("ready")] public bool Ready { get; set; } [JsonProperty("spots")] public List<SpotInfo> Spots { get; set; } }
 
@@ -80,13 +84,14 @@ namespace HideoutExtensions
             if (!enabled) return;
             if (refetchAt > 0 && Time.unscaledTime >= refetchAt) { refetchAt = 0; Refetch(); }
             // Only the teleporting doorways (walls that couldn't be cut) need to know where you are.
-            if (passages.Count > 0)
+            if (passages.Count > 0 && !InRaidCopy)
             {
                 if (walker == null && Time.unscaledTime >= nextWalker) { nextWalker = Time.unscaledTime + 1; walker = UnityEngine.Object.FindObjectOfType<HideoutPlayer>(); }
                 if (walker != null) foreach (Passage passage in passages) if (passage.Through(walker)) break;
             }
-            try { OverviewIcons.Tick(root.transform, sites); }
-            catch (Exception e) { Plugin.Log.LogError("Overview icons: " + e); }
+            if (!InRaidCopy)
+                try { OverviewIcons.Tick(root.transform, sites); }
+                catch (Exception e) { Plugin.Log.LogError("Overview icons: " + e); }
             if (Time.unscaledTime < nextState) return;
             nextState = Time.unscaledTime + 1;
             var changed = sites.Where(s => s.Update()).ToList();
@@ -157,12 +162,52 @@ namespace HideoutExtensions
         {
             GameObject style = HideoutScene.Style;
             if (style == null || style.transform.Find("Wall") == null || style.scene.handle == failedScene) return false;
+            SetUpIn(style);
+            return true;
+        }
+
+        /// <summary>
+        /// The hideout's scene loaded as another mod's raid map: the rooms <paramref name="built"/> lists, with their doors and
+        /// lamps, and none of what's only for the hideout itself (build prompts, the overview's icons and cap, the rooms' own
+        /// navmesh: the raid makes its own). True if the rooms are in.
+        /// </summary>
+        /// <summary>A raid copy's own room (see <see cref="HideoutExtensionsApi.AddRaidRoom"/>), built straight away. Null if it's in.</summary>
+        internal static string AddRaidRoom(SpotInfo spot)
+        {
+            if (!InRaidCopy || root == null) return "there's no raid copy of the hideout";
+            if (spot?.Room?.Min == null || spot.Room.Max == null || string.IsNullOrEmpty(spot.Id)) return "it has no id or room";
+            if (sites.Any(s => s.Spot.Id == spot.Id)) return "there's a room with that id already";
+            if (spot.Opening != null && Find(spot.Opening.From)?.Phase != Site.State.Built) return "the room it opens from isn't built";
+            spot.State = "built";
+            SpotList.Add(spot);
+            RaidBuilt.Add(spot.Id);
+            var site = new Site(spot);
+            sites.Add(site);
+            site.Update();
+            Layout();
+            Plugin.Log.LogInfo($"'{spot.Name}' put in for this raid: {site.Room?.Size.x:0.#} x {site.Room?.Size.z:0.#} m.");
+            return null;
+        }
+
+        internal static bool SetUpRaidCopy(GameObject style, IEnumerable<string> built)
+        {
+            if (root != null) UnityEngine.Object.Destroy(root);
+            root = null;
+            Clear();
+            RaidBuilt = new HashSet<string>(built ?? Enumerable.Empty<string>());
+            SetUpIn(style);
+            if (root == null) RaidBuilt = null;
+            return root != null;
+        }
+
+        private static void SetUpIn(GameObject style)
+        {
             try
             {
                 Reply reply = Fetch();
                 // No answer: the server mod isn't there, so not again this visit. Not ready: no character yet, ask later.
-                if (reply == null) { failedScene = style.scene.handle; return true; }
-                if (!reply.Ready) return true;
+                if (reply == null) { failedScene = style.scene.handle; return; }
+                if (!reply.Ready) return;
                 SpotList.Clear(); SpotList.AddRange(reply.Spots ?? new List<SpotInfo>());
                 if (partsFrom != style || foundParts == null) { foundParts = SceneParts.Find(style.transform); partsFrom = style; }
                 parts = foundParts;
@@ -171,14 +216,14 @@ namespace HideoutExtensions
                 {
                     failedScene = style.scene.handle;
                     Plugin.Log.LogError("The hideout is missing parts a room is made of (see above); no room extensions this visit.");
-                    return true;
+                    return;
                 }
                 root = new GameObject(RootName);
                 SceneManager.MoveGameObjectToScene(root, style.scene);
                 foreach (SpotInfo spot in SpotList) sites.Add(new Site(spot));
                 foreach (Site site in sites) site.Update();
                 Layout();
-                Plugin.Log.LogInfo($"Room extensions in the hideout: {string.Join(", ", sites.Select(s => $"{s.Spot.Name} ({s.Phase})"))}.");
+                Plugin.Log.LogInfo($"Room extensions in {(InRaidCopy ? "the raid's copy of the hideout" : "the hideout")}: {string.Join(", ", sites.Select(s => $"{s.Spot.Name} ({s.Phase})"))}.");
             }
             catch (Exception e)
             {
@@ -188,7 +233,6 @@ namespace HideoutExtensions
                 if (root != null) UnityEngine.Object.Destroy(root);
                 root = null; sites.Clear(); RoomList.Clear();
             }
-            return true;
         }
 
         /// <summary>Everything but the rooms' own frames (which mods may have furnished) is made again from what's built.</summary>
@@ -197,7 +241,7 @@ namespace HideoutExtensions
             passages.Clear();
             foreach (var door in doors) if (door.Value != null) doorStates[door.Key] = door.Value.DoorState == EDoorState.Open ? EDoorState.Open : EDoorState.Shut;
             doors.Clear();
-            if (fixtures != null) UnityEngine.Object.Destroy(fixtures);
+            if (fixtures != null) Gone(fixtures);
             fixtures = new GameObject("Extension doors and prompts");
             fixtures.transform.SetParent(root.transform, false);
             var built = sites.Where(s => s.Phase == Site.State.Built).ToList();
@@ -231,9 +275,9 @@ namespace HideoutExtensions
                     site.Room = new ExtensionRoom { Spot = site.Spot, Root = frame, Size = Room.Size(site.Spot) };
                 }
                 var doorways = new List<Doorway>();
-                if (site.Spot.Opening != null) doorways.Add(new Doorway { Centre = Point(site.Spot.Opening.Position), Owner = true });
+                if (site.Spot.Opening != null) doorways.Add(new Doorway { Centre = Point(site.Spot.Opening.Position), Owner = true, Width = site.Spot.Opening.Width, Height = site.Spot.Opening.Height });
                 foreach (Site child in built.Where(c => c.Spot.Opening?.From == site.Spot.Id))
-                    doorways.Add(new Doorway { Centre = Point(child.Spot.Opening.Position), Owner = false });
+                    doorways.Add(new Doorway { Centre = Point(child.Spot.Opening.Position), Owner = false, Width = child.Spot.Opening.Width, Height = child.Spot.Opening.Height });
                 // Doorways to rooms joined on once both are built.
                 foreach (OpeningInfo link in Links(site.Spot))
                     if (Find(link.From)?.Phase == Site.State.Built) doorways.Add(new Doorway { Centre = Point(link.Position), Owner = true });
@@ -252,7 +296,7 @@ namespace HideoutExtensions
                 Transform old = site.Room.Root.Find("Shell");
                 if (old == null || !shellKeys.TryGetValue(site.Spot.Id, out string had) || had != shellKey)
                 {
-                    if (old != null) UnityEngine.Object.Destroy(old.gameObject);
+                    if (old != null) Gone(old.gameObject);
                     var shell = new GameObject("Shell").transform;
                     shell.SetParent(site.Room.Root, false);
                     Room.Build(site.Spot, parts, shell, doorways);
@@ -304,7 +348,7 @@ namespace HideoutExtensions
                 else if (spot.Door != null && site.Offered)
                 {
                     parts.Door(fixtures.transform, Point(spot.Door.Position), spot.Door.Facing);
-                    site.Zone(fixtures.transform, Point(spot.Door.Position), spot.Door.Facing, 0, Role.Build);
+                    if (!InRaidCopy) site.Zone(fixtures.transform, Point(spot.Door.Position), spot.Door.Facing, 0, Role.Build);
                 }
                 else if (spot.Opening != null)
                 {
@@ -313,7 +357,8 @@ namespace HideoutExtensions
                     // hideout's walls: halfway through the wall, its leaf was behind the face (all of it while the wall
                     // isn't cut yet, but for the hinges and handle).
                     Vector3 flush = at + Quaternion.Euler(0, spot.Opening.Facing, 0) * Vector3.forward * (Room.Gap / 2);
-                    if (site.Phase == Site.State.Built)
+                    if (site.Phase == Site.State.Built && spot.Opening.Open) { }
+                    else if (site.Phase == Site.State.Built)
                     {
                         // A door you open, close or breach, swinging into the room it's reached from.
                         if (!Working(spot.Id, flush, spot.Opening.Facing))
@@ -321,7 +366,7 @@ namespace HideoutExtensions
                             Transform door = parts.Door(fixtures.transform, flush, spot.Opening.Facing);
                             if (SwingDoor.Make(door, site, spot.Id, parts, at, spot.Opening.Facing, Room.Gap) == null)
                             {
-                                UnityEngine.Object.Destroy(door.gameObject);
+                                Gone(door.gameObject);
                                 parts.Frame(fixtures.transform, flush, spot.Opening.Facing);
                             }
                         }
@@ -330,11 +375,11 @@ namespace HideoutExtensions
                     {
                         // Where the next room goes: a closed door in the built room's wall, and its build prompt.
                         parts.Door(fixtures.transform, flush, spot.Opening.Facing);
-                        site.Zone(fixtures.transform, at, spot.Opening.Facing, Room.Gap / 2, Role.Build);
+                        if (!InRaidCopy) site.Zone(fixtures.transform, at, spot.Opening.Facing, Room.Gap / 2, Role.Build);
                     }
                 }
 
-                if (site.Phase == Site.State.Built && spot.Room.RangeMarks?.Panel != null) RangeControl.Panel(fixtures.transform, site, spot.Room.RangeMarks);
+                if (site.Phase == Site.State.Built && spot.Room.RangeMarks?.Panel != null && !InRaidCopy) RangeControl.Panel(fixtures.transform, site, spot.Room.RangeMarks);
 
                 // Doorways between rooms that are both built, whichever came first.
                 if (site.Phase == Site.State.Built)
@@ -349,11 +394,14 @@ namespace HideoutExtensions
                         if (Working(key, flush, link.Facing)) continue;
                         Transform door = parts.Door(fixtures.transform, flush, link.Facing);
                         if (SwingDoor.Make(door, site, key, parts, at, link.Facing, Room.Gap) != null) continue;
-                        UnityEngine.Object.Destroy(door.gameObject);
+                        Gone(door.gameObject);
                         parts.Frame(fixtures.transform, flush, link.Facing);
                     }
                 }
             }
+
+            // In a raid copy, the raid makes its own navmesh, and there's no overview.
+            if (InRaidCopy) return;
 
             // A navmesh over the built rooms, joined to the hideout's through every real doorway (the dog finds its way in).
             var ways = new List<(Vector3, float, float)>();
@@ -404,6 +452,14 @@ namespace HideoutExtensions
                 Plugin.Log.LogWarning("A working door couldn't be put in, so a simpler one is: " + e);
                 return false;
             }
+        }
+
+        // Destroy waits for the end of the frame, and until then the old walls and doors still stop anything that looks for
+        // them in the same frame (a raid copy's floor being walked straight after a room's added); switched off, they don't.
+        private static void Gone(GameObject thing)
+        {
+            thing.SetActive(false);
+            UnityEngine.Object.Destroy(thing);
         }
 
         // On one of the spot's own walls (a room the mod builds, not one the hideout has).
@@ -457,6 +513,7 @@ namespace HideoutExtensions
             sites.Clear(); RoomList.Clear(); SpotList.Clear(); passages.Clear(); walker = null;
             fixtures = null; parts = null;
             failedScene = -1;
+            RaidBuilt = null;
         }
     }
 
@@ -490,6 +547,7 @@ namespace HideoutExtensions
         internal State Current(out long completeAt)
         {
             completeAt = Spot.CompleteAt;
+            if (Extensions.RaidBuilt != null) return Extensions.RaidBuilt.Contains(Spot.Id) ? State.Built : State.None;
             var records = Singleton<HideoutRepresentation>.Instantiated ? Singleton<HideoutRepresentation>.Instance.ImprovementController?._improvementDataBy : null;
             if (records != null && records.TryGetValue(Spot.Id, out ImprovementData data))
             {

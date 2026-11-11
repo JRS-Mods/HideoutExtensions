@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.0
+
+Needs SPT 4.1.x (made on 4.1.6). Install over 1.2.0; your rooms and the places you moved areas to carry over. Nothing changed on the server.
+
+### Added
+
+- **Your rooms and layout in Tushonka: Hideout Under Siege.** The siege loads the hideout as a raid map, and now it has your built rooms (doorways cut, doors in, lamps lit) and your areas where you moved them. In co-op everyone gets the host's.
+- **For modders:** `HideoutExtensionsApi.RaidCopySnapshot()` and `BuildRaidCopy(snapshot)` put a player's rooms and layout into any raid that loads the hideout's scene, and `AddRaidRoom(spotJson)` adds a room of your own to that copy. See "The hideout as a raid map" in the README.
+- **Openings** (a room reached from another) can be a bare doorway with no door (`"open": true`) and any size (`width`, `height`).
+
+### Fixed
+
+- **Right-clicking in an area's panel picked up the area behind it to move.** Right-click examines a requirement's item, and an area icon underneath the panel was picked up at the same time. Only an icon that's on top is picked up now.
+- A room's old walls and doors are gone the moment it's rebuilt, not at the end of the frame: anything checking the room straight after a doorway was added (as the siege does when it walks the floor) found the old wall still across it.
+
 ## 1.2.0
 
 Needs SPT 4.1.x (made on 4.1.6). Install over 1.1.0 and restart the SPT server; your rooms and the places you moved areas to carry over. Works alongside Fika 2.4 (the hideout is your own; nothing about it is shared in co-op).

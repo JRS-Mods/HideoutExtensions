@@ -165,6 +165,7 @@ Hideout Extensions gives other mods three ways in:
 | Add your own rooms | Server mod | A JSON file per room in a `hideoutextensions` folder. No code needed. |
 | Put your own things in the rooms | Client mod | The `RoomReady` event. |
 | Let players move your things from the overview | Client mod | `HideoutExtensionsApi.AddMovable`. |
+| Load the hideout as a raid map, with the player's rooms and layout | Client mod | `HideoutExtensionsApi.RaidCopySnapshot` and `BuildRaidCopy`. |
 
 ### Adding your own rooms
 
@@ -313,6 +314,22 @@ HideoutExtensionsApi.AddMovable(new MovableThing
 - **Copied an area's icon?** If your icon is a copy of one of the game's area icons, right-clicking it would pick up that area. Call `HideoutExtensionsApi.AddUnmovable(icon, "Why it can't move")` for any such icon that shouldn't move anything.
 
 K9 Companion uses this for its kennel: the kennel's paw icon on the overview picks up the kennel, `Check` refuses spots where it doesn't fit, and `Placed` saves where the player put it.
+
+### The hideout as a raid map
+
+A mod that loads the hideout's scene as a raid map (Tushonka: Hideout Under Siege does) can have the player's rooms and layout in it:
+
+```csharp
+// In the raid, as the map loads, before you build anything that depends on the floor (a navmesh, say):
+string snapshot = HideoutExtensionsApi.RaidCopySnapshot();   // the playing profile's built rooms and moved areas
+HideoutExtensionsApi.BuildRaidCopy(snapshot);
+```
+
+- `BuildRaidCopy` puts in the built rooms with their doorways cut, their doors and their lamps, raises `RoomReady` for each, and puts the areas where they were moved (none into a room that isn't built). It leaves out what's only for the hideout: build prompts, the overview's icons, cap and zoom, and the rooms' own navmesh, since your raid makes its own.
+- The snapshot is text, so in co-op the host can send its own to the other players and they build that instead of theirs.
+- Call it once per raid: the areas would move again. Everything goes with the raid's scene, and the player's hideout, its saved layout and the rooms' state are untouched.
+- Find the two methods by name if you don't want to depend on Hideout Extensions being installed.
+- `HideoutExtensionsApi.AddRaidRoom(spotJson)` adds a room of your own to the raid copy, for that raid only: a spot as JSON, like the server's files. An `opening` from a built room joins it on, and in an opening `"open": true` leaves the doorway without a door, while `width` and `height` size it. The siege digs its tunnel this way.
 
 ## How it works
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -33,11 +33,11 @@ namespace HideoutExtensions
         internal static ConfigEntry<string> Fixed;
         internal static ConfigEntry<bool> LightsStay;
 
-        private sealed class Placement { public float X, Z, Yaw; }
+        internal sealed class Placement { public float X, Z, Yaw; }
 
         // Where the game put an area this visit: its root's pose, the point on the floor under its icon, and its light
         // groups' poses (they stay there).
-        private sealed class Home
+        internal sealed class Home
         {
             public Vector3 Position; public Quaternion Rotation; public Vector3 Pivot;
             public readonly List<(Transform group, Vector3 position, Quaternion rotation)> Lights = new List<(Transform, Vector3, Quaternion)>();
@@ -201,11 +201,86 @@ namespace HideoutExtensions
         private static Home HomeOf(HideoutArea area)
         {
             if (homes.TryGetValue(area, out Home home)) return home;
+            return homes[area] = NewHome(area);
+        }
+
+        private static Home NewHome(HideoutArea area)
+        {
             Transform icon = area.AreaIconPoint != null ? area.AreaIconPoint : area.transform;
-            homes[area] = home = new Home { Position = area.transform.position, Rotation = area.transform.rotation, Pivot = new Vector3(icon.position.x, area.transform.position.y, icon.position.z) };
+            var home = new Home { Position = area.transform.position, Rotation = area.transform.rotation, Pivot = new Vector3(icon.position.x, area.transform.position.y, icon.position.z) };
             foreach (Transform group in area.GetComponentsInChildren<Transform>(true).Where(t => t.name == "light_levels"))
                 home.Lights.Add((group, group.position, group.rotation));
             return home;
+        }
+
+        // ---- the hideout as another mod's raid map -----------------------------------------------------------
+
+        /// <summary>The playing profile's saved layout, read fresh (what this visit has in memory is left alone).</summary>
+        internal static Dictionary<string, Placement> SavedLayout()
+        {
+            var saved = new Dictionary<string, Placement>();
+            if (!Enabled.Value) return saved;
+            string id = null;
+            try { if (TarkovApplication.Exist(out TarkovApplication app)) id = app.Session?.Profile?.Id; }
+            catch (Exception) { }
+            if (string.IsNullOrEmpty(id)) return saved;
+            string path = Path.Combine(BepInEx.Paths.ConfigPath, $"jrs.hideoutextensions.layout.{id}.json");
+            try
+            {
+                if (File.Exists(path))
+                    foreach (var entry in JsonConvert.DeserializeObject<Dictionary<string, Placement>>(File.ReadAllText(path)) ?? new Dictionary<string, Placement>())
+                        if (entry.Value != null) saved[entry.Key] = entry.Value;
+            }
+            catch (Exception e) { Plugin.Log.LogWarning($"Couldn't read {path} for the raid's copy of the hideout: {e.Message}"); }
+            return saved;
+        }
+
+        // An area's type. In a raid copy the areas never get their data, so it's the type the scene gives them.
+        internal static string RaidKey(HideoutArea area)
+        {
+            try { return area.Data?.Template?.Type.ToString() ?? area.AreaTemplate?.Type.ToString(); }
+            catch (Exception) { return null; }
+        }
+
+        /// <summary>
+        /// The hideout's scene loaded as another mod's raid map: every area where <paramref name="placements"/> has it (none
+        /// into a room that copy hasn't built), and lamps where it stood. Done once, and none of it kept: the hideout's own
+        /// layout and this visit's moves stay as they are. How many areas it moved.
+        /// </summary>
+        internal static int PlaceRaidCopy(GameObject style, Dictionary<string, Placement> placements)
+        {
+            if (placements == null || placements.Count == 0) return 0;
+            var areas = style.scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<HideoutArea>(true)).ToList();
+            var away = new List<(HideoutArea Area, Home Home, string Key)>();
+            int posed = 0;
+            foreach (HideoutArea area in areas)
+            {
+                string key = RaidKey(area);
+                if (key == null || !placements.TryGetValue(key, out Placement p)) continue;
+                Home home = NewHome(area);
+                if (InUnbuiltRaidRoom(home.Pivot + new Vector3(p.X, 0, p.Z))) continue;
+                Pose(area, home, p);
+                posed++;
+                if (Mathf.Abs(p.X) > .5f || Mathf.Abs(p.Z) > .5f || Mathf.Abs(Mathf.DeltaAngle(p.Yaw, 0)) > 1) away.Add((area, home, key));
+            }
+            SceneParts parts = Extensions.Parts;
+            if (parts != null)
+                foreach (var (area, home, key) in away)
+                    try { HangAt(area, home, areas, parts, style.scene, key); }
+                    catch (Exception e) { Plugin.Log.LogWarning($"Lamps where {key} stood: {e.Message}"); }
+            return posed;
+        }
+
+        // In a room of the copy's that isn't built (rooms it knows nothing of are no bar).
+        private static bool InUnbuiltRaidRoom(Vector3 point)
+        {
+            foreach (SpotInfo spot in Extensions.SpotList)
+            {
+                if (spot.Room?.Min == null || spot.Room.Max == null) continue;
+                if (point.x < spot.Room.Min[0] || point.x > spot.Room.Max[0] || point.z < spot.Room.Min[1] || point.z > spot.Room.Max[1]) continue;
+                if (Extensions.RaidBuilt == null || !Extensions.RaidBuilt.Contains(spot.Id)) return true;
+            }
+            return false;
         }
 
         // The area turned about the point under its icon, and that point moved by the placement.
@@ -259,6 +334,13 @@ namespace HideoutExtensions
             EventSystem.current.RaycastAll(new PointerEventData(EventSystem.current) { position = Input.mousePosition }, hits);
             // Another mod's thing first: its icon may be a copy of an area's (the kennel's is the Rest Space's).
             things.RemoveAll(t => t.Icon == null || t.Root == null);
+            foreach (GameObject gone in unmovable.Keys.Where(k => k == null).ToList()) unmovable.Remove(gone);
+            // Only what's on top counts: an icon behind an open area panel (under the item you right-click to examine in its
+            // requirements, say) isn't picked up. The first small piece of UI that isn't an icon stops the look further down.
+            // An open area panel (the kennel's too) under the mouse: right-click there is the game's (examining an item).
+            if (hits.Any(h => h.gameObject != null && h.gameObject.GetComponentInParent<AreaScreenSubstrate>() != null)) return;
+            int top = hits.FindIndex(h => h.gameObject != null && !IsIcon(h.gameObject) && !Huge(h.gameObject));
+            if (top >= 0) hits.RemoveRange(top, hits.Count - top);
             MovableThing picked = hits.Where(h => h.gameObject != null)
                 .Select(h => things.FirstOrDefault(t => h.gameObject.transform.IsChildOf(t.Icon.transform))).FirstOrDefault(t => t != null);
             // Another mod's icon that moves nothing (a copy of an area's icon for something not yet built, say).
@@ -294,6 +376,22 @@ namespace HideoutExtensions
             before = layout.TryGetValue(key, out Placement placed) ? new Placement { X = placed.X, Z = placed.Z, Yaw = placed.Yaw } : null;
             yaw = before?.Yaw ?? 0;
             Block(icon, Name(area));
+        }
+
+        private static bool IsIcon(GameObject go)
+            => go.GetComponentInParent<AreaIcon>() != null || things.Any(t => go.transform.IsChildOf(t.Icon.transform))
+               || unmovable.Keys.Any(k => k != null && go.transform.IsChildOf(k.transform));
+
+        // Full-screen backdrops and the like (wider or taller than 40% of the screen): not in the way.
+        private static bool Huge(GameObject go)
+        {
+            if (!(go.transform is RectTransform r)) return false;
+            var corners = new Vector3[4];
+            r.GetWorldCorners(corners);
+            Canvas canvas = go.GetComponentInParent<Canvas>();
+            Camera cam = canvas == null || canvas.rootCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.rootCanvas.worldCamera;
+            Vector2 a = RectTransformUtility.WorldToScreenPoint(cam, corners[0]), b = RectTransformUtility.WorldToScreenPoint(cam, corners[2]);
+            return Mathf.Abs(b.x - a.x) > Screen.width * .4f || Mathf.Abs(b.y - a.y) > Screen.height * .4f;
         }
 
         private static string Name(HideoutArea area)
@@ -423,12 +521,19 @@ namespace HideoutExtensions
         // False if the area isn't set up yet (it shows nothing), so it's tried again later.
         private static bool Hang(HideoutArea area, List<HideoutArea> areas, SceneParts parts)
         {
-            Home home = HomeOf(area);
-            if (!Footprint(area, home.Position, home.Rotation, out Rect spot)) return false;
-            var taken = areas.Select(a => Footprint(a, a.transform.position, a.transform.rotation, out Rect r) ? r : Rect.zero).Where(r => r.width > 0).ToList();
-            var holder = new GameObject("Hideout extensions lamps where " + Key(area) + " stood");
-            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(holder, style.scene);
+            GameObject holder = HangAt(area, HomeOf(area), areas, parts, style.scene, Key(area));
+            if (holder == null) return false;
             vacated[area] = holder;
+            return true;
+        }
+
+        // Null if the area isn't set up yet (it shows nothing).
+        private static GameObject HangAt(HideoutArea area, Home home, List<HideoutArea> areas, SceneParts parts, UnityEngine.SceneManagement.Scene scene, string key)
+        {
+            if (!Footprint(area, home.Position, home.Rotation, out Rect spot)) return null;
+            var taken = areas.Select(a => Footprint(a, a.transform.position, a.transform.rotation, out Rect r) ? r : Rect.zero).Where(r => r.width > 0).ToList();
+            var holder = new GameObject("Hideout extensions lamps where " + key + " stood");
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(holder, scene);
             // Down the middle of the old spot, along its longer side, a lamp every few metres (at most four).
             bool alongX = spot.width >= spot.height;
             float length = alongX ? spot.width : spot.height;
@@ -444,8 +549,8 @@ namespace HideoutExtensions
                 Transform tube = parts.Tube(holder.transform, at, alongX ? 90 : 0, ceiling), bulb = parts.Bulb(holder.transform, at, ceiling);
                 if (tube != null || bulb != null) { Lighting.Add(tube, bulb); hung++; }
             }
-            if (hung > 0) Plugin.Log.LogInfo($"{hung} lamp(s) hung where {Key(area)} stood.");
-            return true;
+            if (hung > 0) Plugin.Log.LogInfo($"{hung} lamp(s) hung where {key} stood.");
+            return holder;
         }
 
         // Where an area's things stand on the floor (x, z) at a pose, from its shown models (not its lights); false if
