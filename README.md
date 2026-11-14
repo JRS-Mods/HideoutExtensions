@@ -317,7 +317,7 @@ K9 Companion uses this for its kennel: the kennel's paw icon on the overview pic
 
 ### The hideout as a raid map
 
-A mod that loads the hideout's scene as a raid map (Tushonka: Hideout Under Siege does) can have the player's rooms and layout in it:
+A mod that loads the hideout's scene as a raid map (Tushonka: Hideout Last Stand does) can have the player's rooms and layout in it:
 
 ```csharp
 // In the raid, as the map loads, before you build anything that depends on the floor (a navmesh, say):

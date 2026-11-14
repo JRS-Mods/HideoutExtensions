@@ -6,12 +6,14 @@ Needs SPT 4.1.x (made on 4.1.6). Install over 1.2.0; your rooms and the places y
 
 ### Added
 
-- **Your rooms and layout in Tushonka: Hideout Under Siege.** The siege loads the hideout as a raid map, and now it has your built rooms (doorways cut, doors in, lamps lit) and your areas where you moved them. In co-op everyone gets the host's.
+- **Your rooms and layout in Tushonka: Hideout Last Stand.** The siege loads the hideout as a raid map, and now it has your built rooms (doorways cut, doors in, lamps lit) and your areas where you moved them. In co-op everyone gets the host's.
 - **For modders:** `HideoutExtensionsApi.RaidCopySnapshot()` and `BuildRaidCopy(snapshot)` put a player's rooms and layout into any raid that loads the hideout's scene, and `AddRaidRoom(spotJson)` adds a room of your own to that copy. See "The hideout as a raid map" in the README.
 - **Openings** (a room reached from another) can be a bare doorway with no door (`"open": true`) and any size (`width`, `height`).
 
 ### Fixed
 
+- **One doorway that can't be cut no longer makes every room's doors teleport.** Each room's doorway through the hideout's walls is cut on its own: if one can't be (something in the way the cut can't open), only that room's doors teleport, and the rest are real doorways.
+- **Things you've placed with Hideout Interiors don't stop a doorway being cut.** It's cut anyway, and the log names what's standing in it so you know what to move.
 - **Right-clicking in an area's panel picked up the area behind it to move.** Right-click examines a requirement's item, and an area icon underneath the panel was picked up at the same time. Only an icon that's on top is picked up now.
 - A room's old walls and doors are gone the moment it's rebuilt, not at the end of the frame: anything checking the room straight after a doorway was added (as the siege does when it walks the floor) found the old wall still across it.
 

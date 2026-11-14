@@ -32,7 +32,6 @@ namespace HideoutExtensions
         private static readonly Dictionary<Mesh, Source> sources = new Dictionary<Mesh, Source>();
         private static readonly List<Swap> swaps = new List<Swap>();
         private static string applied;
-        private static bool appliedOk;
         // What the last cut went over: its holes, and every part it found in their way.
         private static List<Hole> currentHoles = new List<Hole>();
         private static readonly HashSet<int> partsLookedAt = new HashSet<int>();
@@ -55,19 +54,47 @@ namespace HideoutExtensions
             return hole;
         }
 
+        // Where Hideout Interiors keeps what you've put in the hideout. It's yours to move, so it never stops a doorway being
+        // cut: the doorway's opened, and the log says what's standing in it.
+        private const string DecorRoot = "Hideout extensions decor";
+        private static HashSet<string> appliedOpen = new HashSet<string>();
+
+        private static bool IsDecor(Transform t)
+        {
+            for (; t != null; t = t.parent) if (t.parent == null && t.name == DecorRoot) return true;
+            return false;
+        }
+
         /// <summary>
-        /// Cuts every hole into whatever of <paramref name="scene"/> it goes through (leaving out <paramref name="skip"/>
-        /// and players); true if they're all open, false (and the walls as the game has them) if not.
+        /// Cuts every hole it can into whatever of <paramref name="scene"/> it goes through (leaving out
+        /// <paramref name="skip"/> and players). A room whose doorway can't be cut (nothing there to cut, or something the
+        /// cut can't open still in it) is left out, and the rest are cut without it. Gives the names of the rooms whose
+        /// doorways are open; the others keep their teleporting doorways.
         /// </summary>
-        public static bool Apply(Scene scene, Transform skip, IList<Hole> holes)
+        public static HashSet<string> Apply(Scene scene, Transform skip, IList<Hole> holes)
         {
             string key = string.Join("|", holes.Select(h => $"{h.Name}@{h.Centre}"));
-            if (key == applied && swaps.All(s => (s.Filter != null || s.Collider != null) && s.Cut != null)) return appliedOk;
+            if (key == applied && swaps.All(s => (s.Filter != null || s.Collider != null) && s.Cut != null)) return new HashSet<string>(appliedOpen);
+            var left = holes.ToList();
+            while (true)
+            {
+                string failed = TryAll(scene, skip, left);
+                if (failed == null) break;
+                left.RemoveAll(h => h.Name == failed);
+            }
+            applied = key;
+            appliedOpen = new HashSet<string>(left.Select(h => h.Name));
+            return new HashSet<string>(appliedOpen);
+        }
+
+        // One try at cutting all of these: null if they're all open, or the name of the room whose doorway couldn't be (and
+        // the walls are as the game has them again).
+        private static string TryAll(Scene scene, Transform skip, List<Hole> holes)
+        {
             Restore();
-            applied = key; appliedOk = true;
             currentHoles = holes.ToList();
             partsLookedAt.Clear();
-            if (holes.Count == 0) return true;
+            if (holes.Count == 0) return null;
             try
             {
                 bool Skip(Component c) => c == null || c.gameObject.scene != scene || c.transform.IsChildOf(skip) || c.GetComponentInParent<Player>() != null;
@@ -122,37 +149,42 @@ namespace HideoutExtensions
                     if (o.seen && o.solid) continue;
                     string missing = !o.seen && !o.solid ? "anything" : o.seen ? "a collider" : "a visible wall";
                     Plugin.Log.LogWarning($"'{hole.Name}': didn't find {missing} to cut where its doorway goes " +
-                                          $"(looked at {(looked.Count == 0 ? "nothing" : string.Join(", ", looked))}); the doors teleport instead.");
+                                          $"(looked at {(looked.Count == 0 ? "nothing" : string.Join(", ", looked))}); its doors teleport instead.");
                     Restore();
-                    applied = key; appliedOk = false;
-                    return false;
+                    return hole.Name;
                 }
 
-                // Still blocked for you (something the cut can't open, like a box collider): then not at all.
+                // Still blocked for you (something the cut can't open, like a box collider): not that room's. What you've
+                // put there yourself doesn't count: you can move it, and it's said so you know to.
                 int player = LayerMask.NameToLayer("Player");
                 int solid = 0;
                 for (int layer = 0; layer < 32; layer++) if (player < 0 || !Physics.GetIgnoreLayerCollision(player, layer)) solid |= 1 << layer;
                 foreach (Hole hole in holes)
                 {
                     var inner = new Vector3(hole.Half.x - .12f, hole.Half.y - .15f, hole.Half.z - Margin);
-                    var blocking = Physics.OverlapBox(hole.Centre, inner, hole.Rotation, solid, QueryTriggerInteraction.Ignore).Where(c => !Skip(c)).ToList();
+                    var inIt = Physics.OverlapBox(hole.Centre, inner, hole.Rotation, solid, QueryTriggerInteraction.Ignore).Where(c => !Skip(c)).ToList();
+                    var decor = inIt.Where(c => IsDecor(c.transform)).ToList();
+                    if (decor.Count > 0)
+                        Plugin.Log.LogWarning($"'{hole.Name}': things you've put in the hideout stand in its doorway, so you may not get through until they're moved: " +
+                                              $"{string.Join(", ", decor.Select(c => c.transform.name).Distinct())}.");
+                    var blocking = inIt.Where(c => !IsDecor(c.transform)).ToList();
                     if (blocking.Count == 0) continue;
-                    Plugin.Log.LogWarning($"'{hole.Name}': its doorway is still blocked by {string.Join(", ", blocking.Select(c => $"{c.GetType().Name} {Path(c.transform)}"))}; the doors teleport instead.");
+                    Plugin.Log.LogWarning($"'{hole.Name}': its doorway is still blocked by {string.Join(", ", blocking.Select(c => $"{c.GetType().Name} {Path(c.transform)}"))}; its doors teleport instead.");
                     Restore();
-                    applied = key; appliedOk = false;
-                    return false;
+                    return hole.Name;
                 }
-                Plugin.Log.LogInfo($"Doorways cut through the hideout's walls ({string.Join(", ", holes.Select(h => h.Name))}): " +
+                Plugin.Log.LogInfo($"Doorways cut through the hideout's walls ({string.Join(", ", holes.Select(h => h.Name).Distinct())}): " +
                                    string.Join(", ", swaps.Select(s => (s.Collider != null ? "collider " : "") + Path((s.Filter as Component ?? s.Collider).transform)
                                                                        + ((s.Filter as Component ?? s.Collider).gameObject.activeInHierarchy ? "" : " (not shown yet)"))) + ".");
-                return true;
+                return null;
             }
             catch (Exception e)
             {
                 Plugin.Log.LogError("The hideout's walls couldn't be cut for the doorways, so the doors teleport instead: " + e);
                 Restore();
-                applied = key; appliedOk = false;
-                return false;
+                // Nothing to single out: every room keeps its teleporting doorways.
+                holes.Clear();
+                return null;
             }
         }
 

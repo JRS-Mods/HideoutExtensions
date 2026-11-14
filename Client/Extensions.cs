@@ -252,7 +252,7 @@ namespace HideoutExtensions
 
             // Built doors through the hideout's own walls: cut for real, or else (see the log) doorways that move you through.
             var throughWalls = built.Where(s => s.Spot.Door != null && s.Spot.Inside != null).ToList();
-            bool cut = WallCut.Apply(root.scene, root.transform, throughWalls.SelectMany(s => Ways(s.Spot).Select(w => WallCut.Box(s.Spot.Name, Point(w.door.Position), w.door.Facing,
+            HashSet<string> cutRooms = WallCut.Apply(root.scene, root.transform, throughWalls.SelectMany(s => Ways(s.Spot).Select(w => WallCut.Box(s.Spot.Name, Point(w.door.Position), w.door.Facing,
                 Point(w.inside.Position), w.door.Width > 0 ? w.door.Width : Room.OpeningWidth, w.door.Height > 0 ? w.door.Height : Room.OpeningHeight))).ToList());
 
             // The areas' prompt zones out of the doorways (built doors, and the build prompts where doors will be).
@@ -285,14 +285,13 @@ namespace HideoutExtensions
                     foreach (OpeningInfo link in Links(other.Spot))
                         if (link.From == site.Spot.Id) doorways.Add(new Doorway { Centre = Point(link.Position), Owner = false });
                 // A cut door's side in this room's own wall (the doorway lines the gap itself).
-                if (cut)
-                    foreach (Site door in throughWalls)
+                foreach (Site door in throughWalls.Where(d => cutRooms.Contains(d.Spot.Name)))
                         foreach (var way in Ways(door.Spot))
                             foreach (DoorInfo side in new[] { way.door, way.inside })
                                 if (InWall(site.Spot, Point(side.Position))) doorways.Add(new Doorway { Centre = Point(side.Position), Owner = false, Width = way.door.Width, Height = way.door.Height });
                 // Walls, lamps and pillars are only built again when what they're built round changed (a doorway into
                 // this room, the hideout's look): another room being built leaves this one as it is.
-                string shellKey = styleVersion + "|" + cut + "|" + string.Join(";", doorways.Select(d => $"{d.Centre}/{d.Owner}/{d.Width}/{d.Height}"));
+                string shellKey = styleVersion + "|" + string.Join(",", cutRooms.OrderBy(n => n)) + "|" + string.Join(";", doorways.Select(d => $"{d.Centre}/{d.Owner}/{d.Width}/{d.Height}"));
                 Transform old = site.Room.Root.Find("Shell");
                 if (old == null || !shellKeys.TryGetValue(site.Spot.Id, out string had) || had != shellKey)
                 {
@@ -315,6 +314,8 @@ namespace HideoutExtensions
                 SpotInfo spot = site.Spot;
                 if (spot.Door != null && site.Phase == Site.State.Built && spot.Inside != null)
                 {
+                    // Each room's doorway on its own: one that couldn't be cut teleports, and the rest are real.
+                    bool cut = cutRooms.Contains(spot.Name);
                     int number = 0;
                     foreach (var way in Ways(spot))
                     {
@@ -405,8 +406,7 @@ namespace HideoutExtensions
 
             // A navmesh over the built rooms, joined to the hideout's through every real doorway (the dog finds its way in).
             var ways = new List<(Vector3, float, float)>();
-            if (cut)
-                foreach (Site site in throughWalls)
+            foreach (Site site in throughWalls.Where(s => cutRooms.Contains(s.Spot.Name)))
                     foreach (var way in Ways(site.Spot))
                         ways.Add((Point(way.door.Position), way.door.Facing, Vector3.Distance(Point(way.door.Position), Point(way.inside.Position))));
             foreach (Site site in built.Where(s => s.Spot.Opening != null))
@@ -417,7 +417,7 @@ namespace HideoutExtensions
             Navigation.Build(root.transform, built.Select(s => s.Spot).ToList(), ways);
 
             // Far rooms: the overview's camera can get to them, and the areas they open off stay drawn from inside them.
-            try { Reach.Apply(root.scene, sites.Where(s => s.Phase == Site.State.Built || s.Offered).Select(s => s.Spot).ToList(), built.Where(s => cut && s.Spot.Door?.Open == true).Select(s => s.Spot).ToList()); }
+            try { Reach.Apply(root.scene, sites.Where(s => s.Phase == Site.State.Built || s.Offered).Select(s => s.Spot).ToList(), built.Where(s => cutRooms.Contains(s.Spot.Name) && s.Spot.Door?.Open == true).Select(s => s.Spot).ToList()); }
             catch (Exception e) { Plugin.Log.LogWarning("Couldn't widen the overview's reach for the rooms: " + e); }
 
             OverviewCap.Apply(parts.Cap, built.Select(s => new Rect(s.Spot.Room.Min[0], s.Spot.Room.Min[1],
